@@ -1,0 +1,69 @@
+defmodule Hyperliquid.Api.Exchange.SubAccountSpotTransfer do
+  @moduledoc """
+  Transfer spot tokens between main account and sub-account.
+
+  See: https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/exchange-endpoint
+  """
+
+  alias Hyperliquid.{Config, Signer, Utils}
+  alias Hyperliquid.Transport.Http
+
+  @doc """
+  Transfer spot tokens between main account and sub-account.
+
+  ## Parameters
+    - `private_key`: Private key for signing (hex string)
+    - `sub_account_user`: Sub-account address
+    - `is_deposit`: true for deposit to sub-account, false for withdrawal
+    - `token`: Token index
+    - `amount`: Amount as string
+    - `opts`: Optional parameters
+
+  ## Returns
+    - `{:ok, response}` - Transfer result
+    - `{:error, term()}` - Error details
+
+  ## Examples
+
+      {:ok, result} = SubAccountSpotTransfer.request(private_key, "0x...", true, 1, "100.0")
+  """
+  def request(private_key, sub_account_user, is_deposit, token, amount, opts \\ []) do
+    nonce = generate_nonce()
+    expires_after = Config.expires_after()
+
+    # IMPORTANT: Use OrderedObject for correct field order in hash calculation
+    # Field order: type, subAccountUser, isDeposit, token, amount
+    action =
+      Jason.OrderedObject.new([
+        {:type, "subAccountSpotTransfer"},
+        {:subAccountUser, sub_account_user},
+        {:isDeposit, is_deposit},
+        {:token, token},
+        {:amount, Utils.float_to_string(amount)}
+      ])
+
+    with {:ok, action_json} <- Jason.encode(action),
+         {:ok, signature} <- sign_action(private_key, action_json, nonce, nil, expires_after) do
+      Http.exchange_request(action, signature, nonce, nil, expires_after, opts)
+    end
+  end
+
+  defp sign_action(private_key, action_json, nonce, vault_address, expires_after) do
+    is_mainnet = Config.mainnet?()
+
+    connection_id =
+      Signer.compute_connection_id_ex(action_json, nonce, vault_address, expires_after)
+
+    case Signer.sign_l1_action(private_key, connection_id, is_mainnet) do
+      %{"r" => r, "s" => s, "v" => v} ->
+        {:ok, %{r: r, s: s, v: v}}
+
+      error ->
+        {:error, {:signing_error, error}}
+    end
+  end
+
+  defp generate_nonce do
+    System.system_time(:millisecond)
+  end
+end

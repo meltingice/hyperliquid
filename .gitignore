@@ -24,3 +24,13 @@ hyperliquid-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+# Ignore secret configuration files
+config/dev.secret.exs
+config/prod.secret.exs
+
+# Rust build artifacts
+/native/*/target/
+
+# Prompts directory (for AI-assisted development)
+/prompts/

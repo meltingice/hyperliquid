@@ -1,0 +1,23 @@
+[package]
+name = "signer_nif"
+version = "0.1.0"
+authors = []
+edition = "2021"
+description = "Rustler NIF exposing Hyperliquid signing functions for Elixir"
+
+[lib]
+name = "signer_nif"
+crate-type = ["cdylib"]
+
+[dependencies]
+rustler = "0.37.0"
+serde_json = { version = "1.0", features = ["preserve_order"] }
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "2.0"
+alloy = { version = "1.0", default-features = false, features = [
+  "dyn-abi",
+  "sol-types",
+  "signer-local",
+] }
+rmp-serde = "1.0"
+ethers-core = { version = "2", default-features = false, features = ["eip712"] }

@@ -1,0 +1,60 @@
+defmodule Hyperliquid.Api.Exchange.AgentEnableDexAbstraction do
+  @moduledoc """
+  Enable or disable DEX abstraction for an agent.
+
+  See: https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/exchange-endpoint
+  """
+
+  alias Hyperliquid.{Config, Signer}
+  alias Hyperliquid.Transport.Http
+
+  @doc """
+  Enable or disable DEX abstraction for an agent.
+
+  ## Parameters
+    - `private_key`: Private key for signing (hex string)
+    - `enabled`: true to enable, false to disable
+    - `opts`: Optional parameters
+
+  ## Returns
+    - `{:ok, response}` - Result
+    - `{:error, term()}` - Error details
+
+  ## Examples
+
+      {:ok, result} = AgentEnableDexAbstraction.request(private_key, true)
+  """
+  def request(private_key, enabled, opts \\ []) do
+    nonce = generate_nonce()
+    expires_after = Config.expires_after()
+
+    action = %{
+      type: "agentEnableDexAbstraction",
+      enabled: enabled
+    }
+
+    with {:ok, action_json} <- Jason.encode(action),
+         {:ok, signature} <- sign_action(private_key, action_json, nonce, nil, expires_after) do
+      Http.exchange_request(action, signature, nonce, nil, expires_after, opts)
+    end
+  end
+
+  defp sign_action(private_key, action_json, nonce, vault_address, expires_after) do
+    is_mainnet = Config.mainnet?()
+
+    connection_id =
+      Signer.compute_connection_id_ex(action_json, nonce, vault_address, expires_after)
+
+    case Signer.sign_l1_action(private_key, connection_id, is_mainnet) do
+      %{"r" => r, "s" => s, "v" => v} ->
+        {:ok, %{r: r, s: s, v: v}}
+
+      error ->
+        {:error, {:signing_error, error}}
+    end
+  end
+
+  defp generate_nonce do
+    System.system_time(:millisecond)
+  end
+end

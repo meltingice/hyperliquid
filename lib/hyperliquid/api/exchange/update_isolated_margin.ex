@@ -1,0 +1,77 @@
+defmodule Hyperliquid.Api.Exchange.UpdateIsolatedMargin do
+  @moduledoc """
+  Add or remove margin from an isolated position.
+
+  See: https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/exchange-endpoint
+  """
+
+  alias Hyperliquid.{Config, Signer}
+  alias Hyperliquid.Transport.Http
+
+  @doc """
+  Add or remove margin from an isolated position.
+
+  ## Parameters
+    - `private_key`: Private key for signing (hex string)
+    - `asset`: Asset index
+    - `is_buy`: true for long position, false for short
+    - `ntli`: Amount to add (positive) or remove (negative)
+    - `opts`: Optional parameters
+
+  ## Options
+    - `:vault_address` - Update for a vault
+
+  ## Returns
+    - `{:ok, response}` - Update result
+    - `{:error, term()}` - Error details
+
+  ## Examples
+
+      # Add margin
+      {:ok, result} = UpdateIsolatedMargin.request(private_key, 0, true, 100)
+
+      # Remove margin
+      {:ok, result} = UpdateIsolatedMargin.request(private_key, 0, true, -50)
+  """
+  def request(private_key, asset, is_buy, ntli, opts \\ []) do
+    vault_address = Keyword.get(opts, :vault_address)
+    nonce = generate_nonce()
+    expires_after = Config.expires_after()
+
+    action = %{
+      type: "updateIsolatedMargin",
+      asset: asset,
+      isBuy: is_buy,
+      ntli: ntli
+    }
+
+    with {:ok, action_json} <- Jason.encode(action),
+         {:ok, signature} <-
+           sign_action(private_key, action_json, nonce, vault_address, expires_after) do
+      Http.exchange_request(action, signature, nonce, vault_address, expires_after, opts)
+    end
+  end
+
+  defp sign_action(private_key, action_json, nonce, vault_address, expires_after) do
+    is_mainnet = Config.mainnet?()
+
+    case Signer.sign_exchange_action_ex(
+           private_key,
+           action_json,
+           nonce,
+           is_mainnet,
+           vault_address,
+           expires_after
+         ) do
+      %{"r" => r, "s" => s, "v" => v} ->
+        {:ok, %{r: r, s: s, v: v}}
+
+      error ->
+        {:error, {:signing_error, error}}
+    end
+  end
+
+  defp generate_nonce do
+    System.system_time(:millisecond)
+  end
+end

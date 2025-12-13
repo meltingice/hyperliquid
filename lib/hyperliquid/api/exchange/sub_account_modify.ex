@@ -1,0 +1,81 @@
+defmodule Hyperliquid.Api.Exchange.SubAccountModify do
+  @moduledoc """
+  Create or modify a sub-account.
+
+  See: https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/exchange-endpoint
+  """
+
+  alias Hyperliquid.{Config, Signer}
+  alias Hyperliquid.Transport.Http
+
+  @doc """
+  Create or modify a sub-account.
+
+  ## Parameters
+    - `private_key`: Private key for signing (hex string)
+    - `name`: Sub-account name
+    - `opts`: Optional parameters
+
+  ## Options
+    - `:sub_account_user` - Sub-account address (for modifying existing)
+
+  ## Returns
+    - `{:ok, response}` - Result with sub-account address
+    - `{:error, term()}` - Error details
+
+  ## Examples
+
+      # Create new sub-account
+      {:ok, result} = SubAccountModify.request(private_key, "Trading Bot")
+
+      # Rename existing sub-account
+      {:ok, result} = SubAccountModify.request(private_key, "New Name", sub_account_user: "0x...")
+  """
+  def request(private_key, name, opts \\ []) do
+    sub_account_user = Keyword.get(opts, :sub_account_user)
+    nonce = generate_nonce()
+    expires_after = Config.expires_after()
+
+    # IMPORTANT: Use OrderedObject for correct field order in hash calculation
+    # Field order: type, subAccountUser, name
+    # Note: subAccountUser is required for modifying existing sub-accounts
+    action =
+      if sub_account_user do
+        Jason.OrderedObject.new([
+          {:type, "subAccountModify"},
+          {:subAccountUser, sub_account_user},
+          {:name, name}
+        ])
+      else
+        # When creating a new sub-account, subAccountUser is not included
+        Jason.OrderedObject.new([
+          {:type, "subAccountModify"},
+          {:name, name}
+        ])
+      end
+
+    with {:ok, action_json} <- Jason.encode(action),
+         {:ok, signature} <- sign_action(private_key, action_json, nonce, nil, expires_after) do
+      Http.exchange_request(action, signature, nonce, nil, expires_after, opts)
+    end
+  end
+
+  defp sign_action(private_key, action_json, nonce, vault_address, expires_after) do
+    is_mainnet = Config.mainnet?()
+
+    connection_id =
+      Signer.compute_connection_id_ex(action_json, nonce, vault_address, expires_after)
+
+    case Signer.sign_l1_action(private_key, connection_id, is_mainnet) do
+      %{"r" => r, "s" => s, "v" => v} ->
+        {:ok, %{r: r, s: s, v: v}}
+
+      error ->
+        {:error, {:signing_error, error}}
+    end
+  end
+
+  defp generate_nonce do
+    System.system_time(:millisecond)
+  end
+end

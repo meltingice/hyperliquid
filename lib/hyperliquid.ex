@@ -3,4 +3,16 @@ defmodule Hyperliquid do
   Documentation for `Hyperliquid`.
   """
 
+  @doc """
+  Hello world.
+
+  ## Examples
+
+      iex> Hyperliquid.hello()
+      :world
+
+  """
+  def hello do
+    :world
+  end
 end

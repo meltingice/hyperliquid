@@ -1,13 +1,19 @@
 import Config
 
+# Main Hyperliquid configuration
 config :hyperliquid,
-  is_mainnet: Mix.env() != :test,
-  ws_url: "wss://api.hyperliquid.xyz/ws",
-  http_url: "https://api.hyperliquid.xyz",
-  hl_bridge_contract: "0x2df1c51e09aecf9cacb7bc98cb1742757f163df7",
+  # Chain selection (:mainnet or :testnet)
+  chain: :mainnet,
+
+  # Optional feature flags (default: false)
+  enable_db: false,
+  enable_web: false,
+
+  # Cache auto-initialization (default: true)
+  autostart_cache: true,
+
+  # Private key for signing transactions (override in dev.secret.exs or runtime.exs)
   private_key: "YOUR_KEY_HERE"
 
-config :hyperliquid, Hyperliquid.Cache.Updater,
-  update_interval: :timer.minutes(5)
-
+# Import environment-specific config
 import_config "#{Mix.env()}.exs"

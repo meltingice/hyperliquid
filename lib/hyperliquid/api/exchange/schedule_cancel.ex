@@ -1,0 +1,77 @@
+defmodule Hyperliquid.Api.Exchange.ScheduleCancel do
+  @moduledoc """
+  Schedule all open orders to be cancelled at a specified time.
+
+  See: https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/exchange-endpoint
+  """
+
+  alias Hyperliquid.{Config, Signer}
+  alias Hyperliquid.Transport.Http
+
+  @doc """
+  Schedule all open orders to be cancelled at a specified time.
+
+  ## Parameters
+    - `private_key`: Private key for signing (hex string)
+    - `time`: Unix timestamp in milliseconds when to cancel orders (or nil to remove scheduled cancel)
+    - `opts`: Optional parameters
+
+  ## Options
+    - `:vault_address` - Schedule for a vault
+
+  ## Returns
+    - `{:ok, response}` - Schedule result
+    - `{:error, term()}` - Error details
+
+  ## Examples
+
+      # Schedule cancel in 1 hour
+      {:ok, result} = ScheduleCancel.request(private_key, System.system_time(:millisecond) + 3600000)
+
+      # Remove scheduled cancel
+      {:ok, result} = ScheduleCancel.request(private_key, nil)
+  """
+  def request(private_key, time, opts \\ []) do
+    vault_address = Keyword.get(opts, :vault_address)
+    nonce = generate_nonce()
+    expires_after = Config.expires_after()
+
+    # IMPORTANT: Use OrderedObject for correct field order in hash calculation
+    # Field order: type, time (optional - can be nil to remove scheduled cancel)
+    action_fields = [{:type, "scheduleCancel"}]
+
+    action_fields =
+      if time != nil do
+        action_fields ++ [{:time, time}]
+      else
+        action_fields
+      end
+
+    action = Jason.OrderedObject.new(action_fields)
+
+    with {:ok, action_json} <- Jason.encode(action),
+         {:ok, signature} <-
+           sign_action(private_key, action_json, nonce, vault_address, expires_after) do
+      Http.exchange_request(action, signature, nonce, vault_address, expires_after, opts)
+    end
+  end
+
+  defp sign_action(private_key, action_json, nonce, vault_address, expires_after) do
+    is_mainnet = Config.mainnet?()
+
+    connection_id =
+      Signer.compute_connection_id_ex(action_json, nonce, vault_address, expires_after)
+
+    case Signer.sign_l1_action(private_key, connection_id, is_mainnet) do
+      %{"r" => r, "s" => s, "v" => v} ->
+        {:ok, %{r: r, s: s, v: v}}
+
+      error ->
+        {:error, {:signing_error, error}}
+    end
+  end
+
+  defp generate_nonce do
+    System.system_time(:millisecond)
+  end
+end

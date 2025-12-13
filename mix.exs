@@ -2,7 +2,7 @@ defmodule Hyperliquid.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/skedzior/hyperliquid"
-  @version "0.1.6"
+  @version "0.2.0"
 
   def project do
     [
@@ -12,7 +12,8 @@ defmodule Hyperliquid.MixProject do
       start_permanent: Mix.env() == :prod,
       package: package(),
       deps: deps(),
-      docs: docs()
+      docs: docs(),
+      aliases: aliases()
     ]
   end
 
@@ -26,7 +27,7 @@ defmodule Hyperliquid.MixProject do
 
   defp package do
     [
-      description: "Elixir api wrapper for the Hyperliquid exchange",
+      description: "Elixir SDK for Hyperliquid DEX with DSL-based API endpoints, WebSocket subscriptions, and optional Postgres/Phoenix integration",
       maintainers: ["Steven Kedzior"],
       licenses: ["MIT"],
       links: %{"GitHub" => @source_url}
@@ -36,16 +37,26 @@ defmodule Hyperliquid.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      # Core dependencies
       {:phoenix_pubsub, "~> 2.1"},
       {:httpoison, "~> 1.7"},
       {:jason, "~> 1.4"},
-      {:websockex, "~> 0.4.3"},
-      {:cachex, "~> 3.6"},
-      {:ex_eip712, "~> 0.3.0"},
-      {:ethers, "~> 0.4.5"},
-      {:msgpax, "~> 2.4"},
+      {:cachex, "~> 4.1.1"},
+      {:gun, "~> 2.0"},
+      {:mint_web_socket, "~> 1.0.5"},
+
+      # Optional database dependencies (enable with config :hyperliquid, enable_db: true)
+      {:phoenix_ecto, "~> 4.5", optional: true},
+      {:ecto_sql, "~> 3.10", optional: true},
+      {:postgrex, ">= 0.0.0", optional: true},
+
+      # Native extensions (optional)
+      {:rustler, "~> 0.37.1", runtime: false, optional: true},
+
+      # Development and testing
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:bypass, "~> 2.1", only: :test}
     ]
   end
 
@@ -59,6 +70,15 @@ defmodule Hyperliquid.MixProject do
       main: "readme",
       source_url: @source_url,
       formatters: ["html"]
+    ]
+  end
+
+  defp aliases do
+    [
+      setup: ["deps.get", "ecto.setup"],
+      "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
+      "ecto.reset": ["ecto.drop", "ecto.setup"],
+      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"]
     ]
   end
 end
