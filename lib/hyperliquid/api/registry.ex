@@ -20,21 +20,81 @@ defmodule Hyperliquid.Api.Registry do
       Hyperliquid.Api.Registry.total_rate_limit_cost(["allMids", "l2Book"])
   """
 
-  # Manually register endpoint modules that use the DSL
-  # This list should be updated as more endpoints are migrated
-  @endpoints [
-    # Weight 2 endpoints
-    Hyperliquid.Api.Info.AllMids,
-    Hyperliquid.Api.Info.L2Book,
-    Hyperliquid.Api.Info.ClearinghouseState,
-    Hyperliquid.Api.Info.SpotClearinghouseState,
-    Hyperliquid.Api.Info.ExchangeStatus,
-    # Weight 20 endpoints
-    Hyperliquid.Api.Info.Meta,
-    Hyperliquid.Api.Info.OpenOrders,
-    Hyperliquid.Api.Info.UserFills,
-    Hyperliquid.Api.Info.UserRateLimit
-  ]
+  # Discover all endpoint modules by scanning the application
+  # This automatically finds all modules that use the Endpoint DSL
+  @endpoints_by_context %{
+    info: [
+      Hyperliquid.Api.Info.ActiveAssetData,
+      Hyperliquid.Api.Info.AlignedQuoteTokenInfo,
+      Hyperliquid.Api.Info.AllMids,
+      Hyperliquid.Api.Info.AllPerpMetas,
+      Hyperliquid.Api.Info.CandleSnapshot,
+      Hyperliquid.Api.Info.ClearinghouseState,
+      Hyperliquid.Api.Info.Delegations,
+      Hyperliquid.Api.Info.DelegatorHistory,
+      Hyperliquid.Api.Info.DelegatorRewards,
+      Hyperliquid.Api.Info.DelegatorSummary,
+      Hyperliquid.Api.Info.ExchangeStatus,
+      Hyperliquid.Api.Info.ExtraAgents,
+      Hyperliquid.Api.Info.FrontendOpenOrders,
+      Hyperliquid.Api.Info.FundingHistory,
+      Hyperliquid.Api.Info.GossipRootIps,
+      Hyperliquid.Api.Info.HistoricalOrders,
+      Hyperliquid.Api.Info.IsVip,
+      Hyperliquid.Api.Info.L2Book,
+      Hyperliquid.Api.Info.LeadingVaults,
+      Hyperliquid.Api.Info.LegalCheck,
+      Hyperliquid.Api.Info.Liquidatable,
+      Hyperliquid.Api.Info.MarginTable,
+      Hyperliquid.Api.Info.MaxBuilderFee,
+      Hyperliquid.Api.Info.MaxMarketOrderNtls,
+      Hyperliquid.Api.Info.Meta,
+      Hyperliquid.Api.Info.MetaAndAssetCtxs,
+      Hyperliquid.Api.Info.OpenOrders,
+      Hyperliquid.Api.Info.OrderStatus,
+      Hyperliquid.Api.Info.PerpDeployAuctionStatus,
+      Hyperliquid.Api.Info.PerpDexLimits,
+      Hyperliquid.Api.Info.PerpDexs,
+      Hyperliquid.Api.Info.PerpsAtOpenInterestCap,
+      Hyperliquid.Api.Info.Portfolio,
+      Hyperliquid.Api.Info.PredictedFundings,
+      Hyperliquid.Api.Info.PreTransferCheck,
+      Hyperliquid.Api.Info.RecentTrades,
+      Hyperliquid.Api.Info.Referral,
+      Hyperliquid.Api.Info.SpotClearinghouseState,
+      Hyperliquid.Api.Info.SpotDeployState,
+      Hyperliquid.Api.Info.SpotMeta,
+      Hyperliquid.Api.Info.SpotMetaAndAssetCtxs,
+      Hyperliquid.Api.Info.SpotPairDeployAuctionStatus,
+      Hyperliquid.Api.Info.SubAccounts,
+      Hyperliquid.Api.Info.SubAccounts2,
+      Hyperliquid.Api.Info.TokenDetails,
+      Hyperliquid.Api.Info.TwapHistory,
+      Hyperliquid.Api.Info.UserDexAbstraction,
+      Hyperliquid.Api.Info.UserFees,
+      Hyperliquid.Api.Info.UserFills,
+      Hyperliquid.Api.Info.UserFillsByTime,
+      Hyperliquid.Api.Info.UserNonFundingLedgerUpdates,
+      Hyperliquid.Api.Info.UserRateLimit,
+      Hyperliquid.Api.Info.UserRole,
+      Hyperliquid.Api.Info.UserToMultiSigSigners,
+      Hyperliquid.Api.Info.UserTwapSliceFills,
+      Hyperliquid.Api.Info.UserTwapSliceFillsByTime,
+      Hyperliquid.Api.Info.UserVaultEquities,
+      Hyperliquid.Api.Info.ValidatorL1Votes,
+      Hyperliquid.Api.Info.ValidatorSummaries,
+      Hyperliquid.Api.Info.VaultDetails,
+      Hyperliquid.Api.Info.VaultSummaries
+    ],
+    exchange: [],
+    explorer: [],
+    stats: []
+  }
+
+  # Flatten all endpoints for backwards compatibility
+  @endpoints @endpoints_by_context
+             |> Map.values()
+             |> List.flatten()
 
   @doc """
   List all registered endpoints with their metadata.
@@ -205,5 +265,121 @@ defmodule Hyperliquid.Api.Registry do
       names = Enum.map(endpoints, & &1.endpoint)
       {cost, names}
     end)
+  end
+
+  @doc """
+  Resolve an endpoint module from context and endpoint name.
+
+  Converts the endpoint name from snake_case to the corresponding module name.
+
+  ## Parameters
+
+  - `context` - Atom: `:info`, `:exchange`, `:explorer`, or `:stats`
+  - `endpoint_name` - Atom in snake_case (e.g., `:all_mids`, `:l2_book`)
+
+  ## Returns
+
+  - `{:ok, module}` - The endpoint module
+  - `{:error, :not_found}` - Endpoint not found
+
+  ## Examples
+
+      iex> Hyperliquid.Api.Registry.resolve_endpoint(:info, :all_mids)
+      {:ok, Hyperliquid.Api.Info.AllMids}
+
+      iex> Hyperliquid.Api.Registry.resolve_endpoint(:info, :l2_book)
+      {:ok, Hyperliquid.Api.Info.L2Book}
+
+      iex> Hyperliquid.Api.Registry.resolve_endpoint(:info, :nonexistent)
+      {:error, :not_found}
+  """
+  def resolve_endpoint(context, endpoint_name) when is_atom(context) and is_atom(endpoint_name) do
+    module_name = snake_to_module_name(endpoint_name)
+
+    context_module = case context do
+      :info -> Hyperliquid.Api.Info
+      :exchange -> Hyperliquid.Api.Exchange
+      :explorer -> Hyperliquid.Api.Explorer
+      :stats -> Hyperliquid.Api.Stats
+      _ -> nil
+    end
+
+    if context_module do
+      full_module = Module.concat(context_module, module_name)
+
+      # Check if module exists in our registry
+      endpoints = Map.get(@endpoints_by_context, context, [])
+
+      if full_module in endpoints do
+        {:ok, full_module}
+      else
+        {:error, :not_found}
+      end
+    else
+      {:error, {:invalid_context, context}}
+    end
+  end
+
+  @doc """
+  Get endpoint module by snake_case name without context.
+
+  Searches all contexts for the endpoint.
+
+  ## Parameters
+
+  - `endpoint_name` - Atom in snake_case
+
+  ## Returns
+
+  - `{:ok, module}` - The endpoint module
+  - `{:error, :not_found}` - Endpoint not found
+  - `{:error, {:ambiguous, modules}}` - Multiple endpoints with same name
+  """
+  def get_endpoint_module(endpoint_name) when is_atom(endpoint_name) do
+    module_name = snake_to_module_name(endpoint_name)
+
+    matches =
+      @endpoints_by_context
+      |> Enum.flat_map(fn {_context, modules} -> modules end)
+      |> Enum.filter(fn mod ->
+        mod
+        |> Module.split()
+        |> List.last()
+        |> Kernel.==(module_name)
+      end)
+
+    case matches do
+      [] -> {:error, :not_found}
+      [module] -> {:ok, module}
+      modules -> {:error, {:ambiguous, modules}}
+    end
+  end
+
+  @doc """
+  List all endpoints for a specific context.
+
+  ## Parameters
+
+  - `context` - Atom: `:info`, `:exchange`, `:explorer`, or `:stats`
+
+  ## Returns
+
+  List of endpoint modules for the context.
+  """
+  def list_context_endpoints(context) when is_atom(context) do
+    Map.get(@endpoints_by_context, context, [])
+  end
+
+  # Convert snake_case atom to PascalCase module name string
+  # Examples:
+  #   :all_mids -> "AllMids"
+  #   :l2_book -> "L2Book"
+  #   :clearinghouse_state -> "ClearinghouseState"
+  defp snake_to_module_name(snake_atom) when is_atom(snake_atom) do
+    snake_atom
+    |> Atom.to_string()
+    |> String.split("_")
+    |> Enum.map(&String.capitalize/1)
+    |> Enum.join("")
   end
 end
