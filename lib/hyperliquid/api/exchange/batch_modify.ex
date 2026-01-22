@@ -7,6 +7,8 @@ defmodule Hyperliquid.Api.Exchange.BatchModify do
   See: https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/exchange-endpoint#modify-multiple-orders
   """
 
+  require Logger
+
   alias Hyperliquid.{Config, Signer, Utils}
   alias Hyperliquid.Api.Exchange.Order
   alias Hyperliquid.Transport.Http
@@ -183,10 +185,9 @@ defmodule Hyperliquid.Api.Exchange.BatchModify do
     System.system_time(:millisecond)
   end
 
-  defp debug(message, data) do
+  defp debug(message, data \\ nil) do
     if Config.debug?() do
-      IO.puts("DEBUG [BatchModify]: #{message}")
-      IO.inspect(data, label: "DEBUG [BatchModify]", pretty: true)
+      Logger.debug("[BatchModify] #{message}", data: data)
     end
 
     :ok

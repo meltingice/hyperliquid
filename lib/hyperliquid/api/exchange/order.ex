@@ -7,6 +7,8 @@ defmodule Hyperliquid.Api.Exchange.Order do
   See: https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/exchange-endpoint
   """
 
+  require Logger
+
   alias Hyperliquid.{Cache, Config, Signer, Utils}
   alias Hyperliquid.Utils.Format
   alias Hyperliquid.Transport.Http
@@ -592,10 +594,9 @@ defmodule Hyperliquid.Api.Exchange.Order do
 
   # ===================== Debug Logging =====================
 
-  defp debug(message, data) do
+  defp debug(message, data \\ nil) do
     if Config.debug?() do
-      IO.puts("DEBUG [Order]: #{message}")
-      IO.inspect(data, label: "DEBUG [Order]", pretty: true)
+      Logger.debug("[Order] #{message}", data: data)
     end
 
     :ok

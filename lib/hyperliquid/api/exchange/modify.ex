@@ -7,6 +7,8 @@ defmodule Hyperliquid.Api.Exchange.Modify do
   See: https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/exchange-endpoint#modify-an-order
   """
 
+  require Logger
+
   alias Hyperliquid.Config
   alias Hyperliquid.Api.Exchange.Order
 
@@ -65,10 +67,9 @@ defmodule Hyperliquid.Api.Exchange.Modify do
 
   # ===================== Helper Functions =====================
 
-  defp debug(message, data) do
+  defp debug(message, data \\ nil) do
     if Config.debug?() do
-      IO.puts("DEBUG [Modify]: #{message}")
-      IO.inspect(data, label: "DEBUG [Modify]", pretty: true)
+      Logger.debug("[Modify] #{message}", data: data)
     end
 
     :ok

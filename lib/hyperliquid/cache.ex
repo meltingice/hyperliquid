@@ -33,6 +33,8 @@ defmodule Hyperliquid.Cache do
       Hyperliquid.Cache.subscribe_to_mids()
   """
 
+  require Logger
+
   alias Hyperliquid.Config
   alias Hyperliquid.Transport.Http
 
@@ -184,8 +186,7 @@ defmodule Hyperliquid.Cache do
 
   defp debug(message, data \\ nil) do
     if Config.debug?() do
-      IO.puts("DEBUG [Cache]: #{message}")
-      if data, do: IO.inspect(data, label: "DEBUG [Cache]", pretty: true)
+      Logger.debug("[Cache] #{message}", data: data)
     end
 
     :ok
