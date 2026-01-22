@@ -3,7 +3,7 @@ defmodule Hyperliquid.Application do
 
   use Application
 
-  alias Hyperliquid.{Cache, Config}
+  alias Hyperliquid.Config
 
   @cache :hyperliquid
 
@@ -15,12 +15,21 @@ defmodule Hyperliquid.Application do
     end
 
     # Core children that always start
-    core_children = [
-      {Phoenix.PubSub, name: Hyperliquid.PubSub},
-      {Cachex, name: @cache},
-      {Hyperliquid.Rpc.Registry, [rpcs: Config.named_rpcs()]},
-      Hyperliquid.WebSocket.Supervisor
-    ]
+    # Order: PubSub, Cachex, Warmer (needs Cachex), Registry, WebSocket.Supervisor
+    core_children =
+      [
+        {Phoenix.PubSub, name: Hyperliquid.PubSub},
+        {Cachex, name: @cache}
+      ] ++
+        if Config.autostart_cache?() do
+          [Hyperliquid.Cache.Warmer]
+        else
+          []
+        end ++
+        [
+          {Hyperliquid.Rpc.Registry, [rpcs: Config.named_rpcs()]},
+          Hyperliquid.WebSocket.Supervisor
+        ]
 
     # Database children (only when enable_db: true)
     db_children =
@@ -32,14 +41,6 @@ defmodule Hyperliquid.Application do
 
     # Build final children list
     children = core_children ++ db_children
-
-    # Conditionally add cache initialization task
-    children =
-      if Config.autostart_cache?() do
-        children ++ [{Task, fn -> init_cache() end}]
-      else
-        children
-      end
 
     opts = [strategy: :one_for_one, name: Hyperliquid.Supervisor]
     Supervisor.start_link(children, opts)
@@ -73,22 +74,6 @@ defmodule Hyperliquid.Application do
       Or disable database features in your config:
         config :hyperliquid, enable_db: false
       """
-    end
-  end
-
-  defp init_cache do
-    # Small delay to ensure Cachex is ready
-    Process.sleep(100)
-
-    case Cache.init() do
-      :ok ->
-        :ok
-
-      {:error, reason} ->
-        # Log the error but don't crash the application
-        require Logger
-        Logger.warning("Failed to initialize Hyperliquid cache: #{inspect(reason)}")
-        :error
     end
   end
 end
