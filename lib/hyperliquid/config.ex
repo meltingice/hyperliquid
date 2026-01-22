@@ -257,4 +257,44 @@ defmodule Hyperliquid.Config do
   def web_enabled? do
     Application.get_env(:hyperliquid, :enable_web, false) == true
   end
+
+  @doc """
+  Returns the delay in milliseconds between cache initialization retries.
+
+  Defaults to 5000ms (5 seconds). Used by Cache.Warmer when initial
+  cache population fails.
+
+  ## Configuration
+
+      config :hyperliquid,
+        cache_retry_delay: 10_000
+
+  ## Usage
+
+      Hyperliquid.Config.cache_retry_delay()
+      # => 5000
+  """
+  def cache_retry_delay do
+    Application.get_env(:hyperliquid, :cache_retry_delay, 5_000)
+  end
+
+  @doc """
+  Returns the maximum number of cache initialization retry attempts.
+
+  Defaults to 3 retries. After max retries are exceeded, the application
+  continues in degraded mode without cached data.
+
+  ## Configuration
+
+      config :hyperliquid,
+        cache_max_retries: 5
+
+  ## Usage
+
+      Hyperliquid.Config.cache_max_retries()
+      # => 3
+  """
+  def cache_max_retries do
+    Application.get_env(:hyperliquid, :cache_max_retries, 3)
+  end
 end
