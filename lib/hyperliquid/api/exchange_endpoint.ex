@@ -49,6 +49,7 @@ defmodule Hyperliquid.Api.ExchangeEndpoint do
 
   defmacro __using__(opts) do
     quote do
+      @behaviour Hyperliquid.Api.EndpointBehaviour
       @exchange_opts unquote(opts)
 
       @before_compile Hyperliquid.Api.ExchangeEndpoint
@@ -60,11 +61,42 @@ defmodule Hyperliquid.Api.ExchangeEndpoint do
 
     action_type = Keyword.fetch!(opts, :action_type)
     signing = Keyword.get(opts, :signing, :exchange)
+    doc = Keyword.get(opts, :doc, "")
+    returns = Keyword.get(opts, :returns, "")
+    params = Keyword.get(opts, :params, [])
+    optional_params = Keyword.get(opts, :optional_params, [:vault_address])
+    rate_limit_cost = Keyword.get(opts, :rate_limit_cost, 1)
 
     # Check if module defines build_action
     has_build_action = Module.defines?(env.module, {:build_action, 1})
 
-    generate_exchange_endpoint(action_type, signing, has_build_action)
+    # Generate endpoint info function
+    info_ast =
+      quote do
+        @doc "Returns metadata about this endpoint."
+        @impl Hyperliquid.Api.EndpointBehaviour
+        def __endpoint_info__ do
+          %{
+            endpoint: unquote(action_type),
+            type: :exchange,
+            action_type: unquote(action_type),
+            signing: unquote(signing),
+            rate_limit_cost: unquote(rate_limit_cost),
+            params: unquote(params),
+            optional_params: unquote(optional_params),
+            doc: unquote(doc),
+            returns: unquote(returns),
+            module: __MODULE__
+          }
+        end
+      end
+
+    endpoint_ast = generate_exchange_endpoint(action_type, signing, has_build_action)
+
+    quote do
+      unquote(info_ast)
+      unquote(endpoint_ast)
+    end
   end
 
   defp generate_exchange_endpoint(action_type, :l1, has_build_action) do
