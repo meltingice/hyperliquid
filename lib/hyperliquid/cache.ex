@@ -412,30 +412,33 @@ defmodule Hyperliquid.Cache do
       # Store mids with original string keys (no transformation)
       debug("Storing mids", %{mids_count: map_size(mids)})
 
-      # Store all data
-      Cachex.put!(@cache, :perp_meta, base_meta)
-      Cachex.put!(@cache, :perp_meta_by_dex, perp_meta_by_dex)
-      Cachex.put!(@cache, :dex_offsets, dex_offsets)
-      Cachex.put!(@cache, :margin_tables, margin_tables)
-      Cachex.put!(@cache, :spot_meta, spot_meta)
-      Cachex.put!(@cache, :all_mids, mids)
-      Cachex.put!(@cache, :asset_map, asset_map)
-      Cachex.put!(@cache, :decimal_map, decimal_map)
-      Cachex.put!(@cache, :asset_to_sz_decimals, asset_to_sz_decimals)
-      Cachex.put!(@cache, :asset_to_price_decimals, asset_to_price_decimals)
-      Cachex.put!(@cache, :perps, Map.get(base_meta, "universe", []))
-      Cachex.put!(@cache, :spot_pairs, Map.get(spot_meta, "universe", []))
-      Cachex.put!(@cache, :tokens, Map.get(spot_meta, "tokens", []))
-      Cachex.put!(@cache, :ctxs, ctxs)
-      Cachex.put!(@cache, :spot_ctxs, spot_ctxs)
+      # Store all data with appropriate TTLs
+      # META TTL for perp_meta, perp_meta_by_dex, spot_meta, perps, spot_pairs, tokens
+      # MIDS TTL for all_mids
+      # DEFAULT TTL for others
+      cache_put(:perp_meta, base_meta, expire: Config.cache_meta_ttl())
+      cache_put(:perp_meta_by_dex, perp_meta_by_dex, expire: Config.cache_meta_ttl())
+      cache_put(:dex_offsets, dex_offsets)
+      cache_put(:margin_tables, margin_tables)
+      cache_put(:spot_meta, spot_meta, expire: Config.cache_meta_ttl())
+      cache_put(:all_mids, mids, expire: Config.cache_mids_ttl())
+      cache_put(:asset_map, asset_map)
+      cache_put(:decimal_map, decimal_map)
+      cache_put(:asset_to_sz_decimals, asset_to_sz_decimals)
+      cache_put(:asset_to_price_decimals, asset_to_price_decimals)
+      cache_put(:perps, Map.get(base_meta, "universe", []), expire: Config.cache_meta_ttl())
+      cache_put(:spot_pairs, Map.get(spot_meta, "universe", []), expire: Config.cache_meta_ttl())
+      cache_put(:tokens, Map.get(spot_meta, "tokens", []), expire: Config.cache_meta_ttl())
+      cache_put(:ctxs, ctxs)
+      cache_put(:spot_ctxs, spot_ctxs)
 
       # Build spot pair mappings (BASE/QUOTE format)
       {spot_pair_asset_map, spot_pair_id_map, spot_pair_decimals} =
         build_spot_pair_maps(spot_meta)
 
-      Cachex.put!(@cache, :spot_pair_asset_map, spot_pair_asset_map)
-      Cachex.put!(@cache, :spot_pair_id_map, spot_pair_id_map)
-      Cachex.put!(@cache, :spot_pair_decimals, spot_pair_decimals)
+      cache_put(:spot_pair_asset_map, spot_pair_asset_map)
+      cache_put(:spot_pair_id_map, spot_pair_id_map)
+      cache_put(:spot_pair_decimals, spot_pair_decimals)
 
       debug("Cache.init completed successfully")
       :ok
@@ -688,13 +691,11 @@ defmodule Hyperliquid.Cache do
       Hyperliquid.Cache.update_mids(%{"BTC" => "43250.5", "ETH" => "2250.0"})
   """
   def update_mids(mids) when is_map(mids) do
-    case get(:all_mids) do
-      nil ->
-        put(:all_mids, mids)
-
-      existing ->
-        put(:all_mids, Map.merge(existing, mids))
+    merged_mids = case get(:all_mids) do
+      nil -> mids
+      existing -> Map.merge(existing, mids)
     end
+    cache_put(:all_mids, merged_mids, expire: Config.cache_mids_ttl())
   end
 
   @doc """
@@ -705,13 +706,11 @@ defmodule Hyperliquid.Cache do
     - `price`: Price as string or number
   """
   def update_mid(coin, price) when is_binary(coin) do
-    case get(:all_mids) do
-      nil ->
-        put(:all_mids, %{coin => price})
-
-      existing ->
-        put(:all_mids, Map.put(existing, coin, price))
+    updated_mids = case get(:all_mids) do
+      nil -> %{coin => price}
+      existing -> Map.put(existing, coin, price)
     end
+    cache_put(:all_mids, updated_mids, expire: Config.cache_mids_ttl())
   end
 
   # ===================== WebSocket Subscription =====================
@@ -1032,10 +1031,10 @@ defmodule Hyperliquid.Cache do
   end
 
   @doc """
-  Put a key-value pair into the cache.
+  Put a key-value pair into the cache with default TTL.
   """
   def put(key, value) do
-    Cachex.put!(@cache, key, value)
+    cache_put(key, value)
   end
 
   @doc """
