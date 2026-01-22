@@ -86,7 +86,10 @@ defmodule Hyperliquid.Api.Registry do
       Hyperliquid.Api.Info.VaultDetails,
       Hyperliquid.Api.Info.VaultSummaries
     ],
-    exchange: [],
+    exchange: [
+      Hyperliquid.Api.Exchange.Noop,
+      Hyperliquid.Api.Exchange.SetDisplayName
+    ],
     explorer: [],
     stats: []
   }
