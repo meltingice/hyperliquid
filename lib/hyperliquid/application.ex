@@ -3,6 +3,8 @@ defmodule Hyperliquid.Application do
 
   use Application
 
+  import Cachex.Spec
+
   alias Hyperliquid.Config
 
   @cache :hyperliquid
@@ -19,7 +21,21 @@ defmodule Hyperliquid.Application do
     core_children =
       [
         {Phoenix.PubSub, name: Hyperliquid.PubSub},
-        {Cachex, name: @cache}
+        {Cachex, [
+          name: @cache,
+          expiration: expiration(
+            default: Config.cache_default_ttl(),
+            interval: Config.cache_janitor_interval(),
+            lazy: true
+          ),
+          hooks: [
+            hook(module: Cachex.Limit.Scheduled, args: {
+              Config.cache_max_entries(),
+              [reclaim: Config.cache_reclaim_fraction()],
+              [frequency: 10_000]
+            })
+          ]
+        ]}
       ] ++
         if Config.autostart_cache?() do
           [Hyperliquid.Cache.Warmer]
