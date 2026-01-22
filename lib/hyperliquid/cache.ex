@@ -50,8 +50,264 @@ defmodule Hyperliquid.Cache do
 
   Fetches metadata for perps and spot markets, asset mappings, and current mid prices.
   This should be called at application startup.
+
+  This is a backwards-compatible wrapper around init_with_partial_success/0.
+  Partial successes are treated as full successes for callers that don't need
+  to know which keys failed.
   """
   def init do
+    case init_with_partial_success() do
+      :ok -> :ok
+      {:ok, :partial, _failed_keys} -> :ok
+      {:error, _reason} = error -> error
+    end
+  end
+
+  @doc """
+  Initializes the cache with partial failure handling.
+
+  Fetches all 4 data sources (meta, spot_meta, mids, perp_dexs) and stores
+  only the successful results. Failed fetches are SKIPPED, not stored.
+
+  ## Returns
+
+  - `:ok` - All 4 sources fetched successfully
+  - `{:ok, :partial, failed_keys}` - Some sources failed, `failed_keys` is a list
+    of atoms like `[:mids, :perp_dexs]` indicating which fetches failed
+  - `{:error, :all_failed}` - All 4 sources failed to fetch
+
+  ## Example
+
+      Hyperliquid.Cache.init_with_partial_success()
+      # => :ok
+
+      # If mids API is down:
+      Hyperliquid.Cache.init_with_partial_success()
+      # => {:ok, :partial, [:mids]}
+  """
+  def init_with_partial_success do
+    debug("Cache.init_with_partial_success starting...")
+
+    # Fetch all 4 data sources
+    fetches = [
+      {:meta, fn -> Http.meta_and_asset_ctxs() end},
+      {:spot_meta, fn -> Http.spot_meta_and_asset_ctxs() end},
+      {:mids, fn -> Http.all_mids(raw: true) end},
+      {:perp_dexs, fn -> Http.perp_dexs() end}
+    ]
+
+    results =
+      Enum.map(fetches, fn {key, fetch_fn} ->
+        result = fetch_fn.()
+        debug("Fetched #{key}", %{success: match?({:ok, _}, result)})
+        {key, result}
+      end)
+
+    {successes, failures} =
+      Enum.split_with(results, fn {_key, result} ->
+        match?({:ok, _}, result)
+      end)
+
+    failed_keys = Enum.map(failures, fn {key, _result} -> key end)
+
+    debug("Fetch results", %{
+      success_count: length(successes),
+      failure_count: length(failures),
+      failed_keys: failed_keys
+    })
+
+    # Process and store successful fetches
+    success_map = Map.new(successes, fn {key, {:ok, data}} -> {key, data} end)
+
+    if map_size(success_map) > 0 do
+      store_successful_fetches(success_map)
+    end
+
+    # Return appropriate result based on success/failure counts
+    case {length(successes), length(failures)} do
+      {4, 0} ->
+        debug("Cache.init_with_partial_success completed successfully")
+        :ok
+
+      {n, _} when n > 0 ->
+        debug("Cache.init_with_partial_success completed with partial failures", %{failed_keys: failed_keys})
+        {:ok, :partial, failed_keys}
+
+      {0, _} ->
+        debug("Cache.init_with_partial_success failed - all fetches failed")
+        {:error, :all_failed}
+    end
+  end
+
+  # Store successful fetches into cache
+  defp store_successful_fetches(success_map) do
+    # Extract data from success map
+    meta_data = Map.get(success_map, :meta)
+    spot_meta_data = Map.get(success_map, :spot_meta)
+    mids_data = Map.get(success_map, :mids)
+    perp_dexs_data = Map.get(success_map, :perp_dexs)
+
+    # Process meta if available
+    {perp_asset_map, perp_decimal_map, base_meta, ctxs, dex_offsets, perp_meta_by_dex, margin_tables} =
+      if meta_data && perp_dexs_data do
+        [base_meta, ctxs] = meta_data
+
+        debug("Processing perp meta", %{
+          universe_count: length(Map.get(base_meta, "universe", []))
+        })
+
+        # Discover builder-deployed perp DEXs and compute offsets
+        builder_dexs =
+          perp_dexs_data
+          |> extract_builder_dexs()
+          |> maybe_limit_testnet_dexs()
+
+        debug("Builder DEXs", %{dexs: builder_dexs, count: length(builder_dexs)})
+
+        dex_offsets =
+          builder_dexs
+          |> Enum.with_index()
+          |> Enum.reduce(%{"" => 0}, fn {dex, i}, acc ->
+            Map.put(acc, dex, 110_000 + i * 10_000)
+          end)
+
+        debug("DEX offsets", %{offsets: dex_offsets})
+
+        # Fetch meta for each builder perp DEX
+        perp_meta_by_dex =
+          builder_dexs
+          |> Enum.map(fn dex ->
+            case Http.all_perp_metas(dex) do
+              {:ok, meta} ->
+                debug("Fetched meta for DEX", %{
+                  dex: dex,
+                  universe_count: length(Map.get(meta, "universe", []))
+                })
+                {dex, meta}
+
+              {:error, _} ->
+                debug("Failed to fetch meta for DEX", %{dex: dex})
+                {dex, %{"universe" => []}}
+            end
+          end)
+          |> Enum.into(%{})
+
+        # Build asset + decimals maps starting with base perps
+        {perp_asset_map, perp_decimal_map} = build_perp_maps(base_meta, 0, %{}, %{})
+
+        # Add builder DEX perps
+        {perp_asset_map, perp_decimal_map} =
+          Enum.reduce(perp_meta_by_dex, {perp_asset_map, perp_decimal_map}, fn {dex, meta},
+                                                                               {am, dm} ->
+            offset = Map.fetch!(dex_offsets, dex)
+            build_perp_maps(meta, offset, am, dm)
+          end)
+
+        debug("Built perp maps", %{
+          asset_map_count: map_size(perp_asset_map),
+          decimal_map_count: map_size(perp_decimal_map)
+        })
+
+        # Margin tables to map id => table
+        margin_tables = margin_tables_to_map(base_meta)
+
+        {perp_asset_map, perp_decimal_map, base_meta, ctxs, dex_offsets, perp_meta_by_dex, margin_tables}
+      else
+        {%{}, %{}, nil, nil, nil, nil, nil}
+      end
+
+    # Process spot meta if available
+    {spot_asset_map, spot_decimal_map, spot_meta, spot_ctxs} =
+      if spot_meta_data do
+        [spot_meta, spot_ctxs] = spot_meta_data
+
+        debug("Processing spot meta", %{
+          universe_count: length(Map.get(spot_meta, "universe", []))
+        })
+
+        {spot_asset_map, spot_decimal_map} = build_spot_maps(spot_meta)
+        {spot_asset_map, spot_decimal_map, spot_meta, spot_ctxs}
+      else
+        {%{}, %{}, nil, nil}
+      end
+
+    # Merge maps
+    asset_map = Map.merge(perp_asset_map, spot_asset_map)
+    decimal_map = Map.merge(perp_decimal_map, spot_decimal_map)
+
+    debug("Merged maps", %{
+      total_assets: map_size(asset_map),
+      total_decimals: map_size(decimal_map)
+    })
+
+    # Map asset_id -> szDecimals and asset_id -> allowed price decimals
+    asset_to_sz_decimals =
+      Enum.reduce(asset_map, %{}, fn {name, asset}, acc ->
+        Map.put(acc, asset, Map.get(decimal_map, name))
+      end)
+
+    asset_to_price_decimals =
+      Enum.reduce(asset_to_sz_decimals, %{}, fn {asset, sz_dec}, acc ->
+        max_decimals = if asset >= 10_000 and asset < 100_000, do: 8, else: 6
+        allowed = max(max_decimals - (sz_dec || 0), 0)
+        Map.put(acc, asset, allowed)
+      end)
+
+    # Store meta-related data (only if we have it)
+    if base_meta do
+      safe_put(:perp_meta, base_meta)
+      safe_put(:perp_meta_by_dex, perp_meta_by_dex)
+      safe_put(:dex_offsets, dex_offsets)
+      safe_put(:margin_tables, margin_tables)
+      safe_put(:perps, Map.get(base_meta, "universe", []))
+      safe_put(:ctxs, ctxs)
+    end
+
+    if spot_meta do
+      safe_put(:spot_meta, spot_meta)
+      safe_put(:spot_pairs, Map.get(spot_meta, "universe", []))
+      safe_put(:tokens, Map.get(spot_meta, "tokens", []))
+      safe_put(:spot_ctxs, spot_ctxs)
+
+      # Build spot pair mappings (BASE/QUOTE format)
+      {spot_pair_asset_map, spot_pair_id_map, spot_pair_decimals} =
+        build_spot_pair_maps(spot_meta)
+
+      safe_put(:spot_pair_asset_map, spot_pair_asset_map)
+      safe_put(:spot_pair_id_map, spot_pair_id_map)
+      safe_put(:spot_pair_decimals, spot_pair_decimals)
+    end
+
+    # Store mids if available
+    if mids_data do
+      debug("Storing mids", %{mids_count: map_size(mids_data)})
+      safe_put(:all_mids, mids_data)
+    end
+
+    # Store combined maps (only if we have any data)
+    if map_size(asset_map) > 0 do
+      safe_put(:asset_map, asset_map)
+      safe_put(:decimal_map, decimal_map)
+      safe_put(:asset_to_sz_decimals, asset_to_sz_decimals)
+      safe_put(:asset_to_price_decimals, asset_to_price_decimals)
+    end
+
+    :ok
+  end
+
+  # Safe put that handles Cachex.put/3 result (not put!/3)
+  defp safe_put(key, value) do
+    case Cachex.put(@cache, key, value) do
+      {:ok, true} -> :ok
+      {:error, reason} ->
+        Logger.warning("[Cache] Failed to store #{key}: #{inspect(reason)}")
+        :error
+    end
+  end
+
+  @doc false
+  # Legacy init implementation - kept for reference but no longer used
+  def init_legacy do
     debug("Cache.init starting...")
 
     with {:ok, [base_meta, ctxs]} <- Http.meta_and_asset_ctxs(),
