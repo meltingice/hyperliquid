@@ -136,6 +136,7 @@ defmodule Hyperliquid.Api.Endpoint do
     quote do
       use Ecto.Schema
       import Ecto.Changeset
+      @behaviour Hyperliquid.Api.EndpointBehaviour
 
       @endpoint_opts unquote(opts)
 
@@ -280,6 +281,7 @@ defmodule Hyperliquid.Api.Endpoint do
               returns: "#{unquote(returns)}"
             }
         """
+        @impl Hyperliquid.Api.EndpointBehaviour
         def __endpoint_info__ do
           %{
             endpoint: unquote(endpoint_name),
