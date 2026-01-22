@@ -11,5 +11,10 @@ defmodule Hyperliquid.Api.Exchange.Noop do
 
   use Hyperliquid.Api.ExchangeEndpoint,
     action_type: "noop",
-    signing: :l1
+    signing: :l1,
+    doc: "Send a no-op heartbeat to keep connection alive",
+    returns: "Success/error response from exchange",
+    params: [:private_key],
+    optional_params: [:vault_address],
+    rate_limit_cost: 1
 end

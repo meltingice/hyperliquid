@@ -1,6 +1,6 @@
 defmodule Hyperliquid.Api.Exchange.SetDisplayName do
   @moduledoc """
-  Set your account display name.
+  Set display name for user account.
 
   See: https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/exchange-endpoint
 
@@ -11,7 +11,12 @@ defmodule Hyperliquid.Api.Exchange.SetDisplayName do
 
   use Hyperliquid.Api.ExchangeEndpoint,
     action_type: "setDisplayName",
-    signing: :l1
+    signing: :l1,
+    doc: "Set display name for user account",
+    returns: "Success/error response from exchange",
+    params: [:private_key, :display_name],
+    optional_params: [:vault_address],
+    rate_limit_cost: 1
 
   @doc false
   def build_action(display_name) do
