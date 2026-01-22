@@ -254,53 +254,59 @@ defmodule Hyperliquid.Cache do
       end)
 
     # Store meta-related data (only if we have it)
+    # META TTL for perp_meta, perp_meta_by_dex, perps
+    # DEFAULT TTL for dex_offsets, margin_tables, ctxs
     if base_meta do
-      safe_put(:perp_meta, base_meta)
-      safe_put(:perp_meta_by_dex, perp_meta_by_dex)
-      safe_put(:dex_offsets, dex_offsets)
-      safe_put(:margin_tables, margin_tables)
-      safe_put(:perps, Map.get(base_meta, "universe", []))
-      safe_put(:ctxs, ctxs)
+      cache_put(:perp_meta, base_meta, expire: Config.cache_meta_ttl())
+      cache_put(:perp_meta_by_dex, perp_meta_by_dex, expire: Config.cache_meta_ttl())
+      cache_put(:dex_offsets, dex_offsets)
+      cache_put(:margin_tables, margin_tables)
+      cache_put(:perps, Map.get(base_meta, "universe", []), expire: Config.cache_meta_ttl())
+      cache_put(:ctxs, ctxs)
     end
 
+    # Store spot-related data
+    # META TTL for spot_meta, spot_pairs, tokens
+    # DEFAULT TTL for spot_ctxs, spot_pair_asset_map, spot_pair_id_map, spot_pair_decimals
     if spot_meta do
-      safe_put(:spot_meta, spot_meta)
-      safe_put(:spot_pairs, Map.get(spot_meta, "universe", []))
-      safe_put(:tokens, Map.get(spot_meta, "tokens", []))
-      safe_put(:spot_ctxs, spot_ctxs)
+      cache_put(:spot_meta, spot_meta, expire: Config.cache_meta_ttl())
+      cache_put(:spot_pairs, Map.get(spot_meta, "universe", []), expire: Config.cache_meta_ttl())
+      cache_put(:tokens, Map.get(spot_meta, "tokens", []), expire: Config.cache_meta_ttl())
+      cache_put(:spot_ctxs, spot_ctxs)
 
       # Build spot pair mappings (BASE/QUOTE format)
       {spot_pair_asset_map, spot_pair_id_map, spot_pair_decimals} =
         build_spot_pair_maps(spot_meta)
 
-      safe_put(:spot_pair_asset_map, spot_pair_asset_map)
-      safe_put(:spot_pair_id_map, spot_pair_id_map)
-      safe_put(:spot_pair_decimals, spot_pair_decimals)
+      cache_put(:spot_pair_asset_map, spot_pair_asset_map)
+      cache_put(:spot_pair_id_map, spot_pair_id_map)
+      cache_put(:spot_pair_decimals, spot_pair_decimals)
     end
 
-    # Store mids if available
+    # Store mids if available (MIDS TTL - shorter due to frequent updates)
     if mids_data do
       debug("Storing mids", %{mids_count: map_size(mids_data)})
-      safe_put(:all_mids, mids_data)
+      cache_put(:all_mids, mids_data, expire: Config.cache_mids_ttl())
     end
 
-    # Store combined maps (only if we have any data)
+    # Store combined maps (only if we have any data) - DEFAULT TTL
     if map_size(asset_map) > 0 do
-      safe_put(:asset_map, asset_map)
-      safe_put(:decimal_map, decimal_map)
-      safe_put(:asset_to_sz_decimals, asset_to_sz_decimals)
-      safe_put(:asset_to_price_decimals, asset_to_price_decimals)
+      cache_put(:asset_map, asset_map)
+      cache_put(:decimal_map, decimal_map)
+      cache_put(:asset_to_sz_decimals, asset_to_sz_decimals)
+      cache_put(:asset_to_price_decimals, asset_to_price_decimals)
     end
 
     :ok
   end
 
-  # Safe put that handles Cachex.put/3 result (not put!/3)
-  defp safe_put(key, value) do
-    case Cachex.put(@cache, key, value) do
+  # TTL-aware cache put that handles Cachex.put/3 result (not put!/3)
+  defp cache_put(key, value, opts \\ []) do
+    ttl = Keyword.get(opts, :expire, Config.cache_default_ttl())
+    case Cachex.put(@cache, key, value, expire: ttl) do
       {:ok, true} -> :ok
       {:error, reason} ->
-        Logger.warning("[Cache] Failed to store #{key}: #{inspect(reason)}")
+        Logger.warning("[Cache] Failed to store #{inspect(key)}", error: inspect(reason))
         :error
     end
   end
