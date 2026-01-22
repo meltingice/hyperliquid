@@ -297,4 +297,123 @@ defmodule Hyperliquid.Config do
   def cache_max_retries do
     Application.get_env(:hyperliquid, :cache_max_retries, 3)
   end
+
+  @doc """
+  Returns the default TTL for cache entries in milliseconds.
+
+  This is the fallback TTL used when no specific TTL is provided.
+  Defaults to 300,000ms (5 minutes).
+
+  ## Configuration
+
+      config :hyperliquid,
+        cache_default_ttl: 600_000
+
+  ## Usage
+
+      Hyperliquid.Config.cache_default_ttl()
+      # => 300_000
+  """
+  def cache_default_ttl do
+    Application.get_env(:hyperliquid, :cache_default_ttl, 300_000)
+  end
+
+  @doc """
+  Returns the TTL for all_mids cache entries in milliseconds.
+
+  Mid prices change frequently, so this TTL is shorter than the default.
+  Defaults to 60,000ms (1 minute).
+
+  ## Configuration
+
+      config :hyperliquid,
+        cache_mids_ttl: 30_000
+
+  ## Usage
+
+      Hyperliquid.Config.cache_mids_ttl()
+      # => 60_000
+  """
+  def cache_mids_ttl do
+    Application.get_env(:hyperliquid, :cache_mids_ttl, 60_000)
+  end
+
+  @doc """
+  Returns the TTL for metadata cache entries in milliseconds.
+
+  Metadata (perp_meta, spot_meta) changes less frequently than prices.
+  Defaults to 600,000ms (10 minutes).
+
+  ## Configuration
+
+      config :hyperliquid,
+        cache_meta_ttl: 900_000
+
+  ## Usage
+
+      Hyperliquid.Config.cache_meta_ttl()
+      # => 600_000
+  """
+  def cache_meta_ttl do
+    Application.get_env(:hyperliquid, :cache_meta_ttl, 600_000)
+  end
+
+  @doc """
+  Returns the maximum number of cache entries before eviction.
+
+  When this limit is reached, LRW (Least Recently Written) eviction
+  removes old entries. Defaults to 5000 entries.
+
+  ## Configuration
+
+      config :hyperliquid,
+        cache_max_entries: 10_000
+
+  ## Usage
+
+      Hyperliquid.Config.cache_max_entries()
+      # => 5000
+  """
+  def cache_max_entries do
+    Application.get_env(:hyperliquid, :cache_max_entries, 5000)
+  end
+
+  @doc """
+  Returns the fraction of entries to evict when size limit is reached.
+
+  A value of 0.1 means 10% of entries are evicted, creating a buffer
+  to prevent constant eviction thrashing. Defaults to 0.1 (10%).
+
+  ## Configuration
+
+      config :hyperliquid,
+        cache_reclaim_fraction: 0.15
+
+  ## Usage
+
+      Hyperliquid.Config.cache_reclaim_fraction()
+      # => 0.1
+  """
+  def cache_reclaim_fraction do
+    Application.get_env(:hyperliquid, :cache_reclaim_fraction, 0.1)
+  end
+
+  @doc """
+  Returns the interval for the cache janitor in milliseconds.
+
+  The janitor periodically cleans expired entries. Defaults to 60,000ms (60 seconds).
+
+  ## Configuration
+
+      config :hyperliquid,
+        cache_janitor_interval: 120_000
+
+  ## Usage
+
+      Hyperliquid.Config.cache_janitor_interval()
+      # => 60_000
+  """
+  def cache_janitor_interval do
+    Application.get_env(:hyperliquid, :cache_janitor_interval, 60_000)
+  end
 end
