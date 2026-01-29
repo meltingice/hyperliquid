@@ -370,29 +370,34 @@ defmodule Hyperliquid.Api.Exchange.Order do
   ## Options
     - `:slippage_price` - Far limit price for slippage protection (auto-calculated if not provided)
     - `:slippage` - Slippage percentage (default: 0.05 = 5%)
-    - `:coin` - Coin symbol for mid price lookup (required if slippage_price not provided)
+    - `:coin` - Coin symbol for mid price lookup (auto-resolved from asset index if not provided)
     - `:reduce_only` - Only reduce position (default: false)
     - `:cloid` - Client order ID
 
+  If neither `:slippage_price` nor `:coin` is provided, the coin is automatically
+  resolved from the asset index via cache reverse lookup.
+
   ## Examples
+
+      # Automatic price lookup (resolves coin from asset index)
+      Order.market(0, true, "0.1")
 
       # With explicit slippage price
       Order.market(0, true, "0.1", slippage_price: "100000.0")
 
-      # With automatic slippage calculation from mid price
+      # With explicit coin for mid price lookup
       Order.market(0, true, "0.1", coin: "BTC", slippage: 0.05)
   """
   @spec market(non_neg_integer(), boolean(), String.t(), keyword()) :: limit_order()
   def market(asset, is_buy, sz, opts \\ []) do
-    slippage_price = calculate_slippage_price(opts, is_buy)
+    slippage_price = calculate_slippage_price(opts, is_buy, asset)
     limit(asset, is_buy, slippage_price, sz, Keyword.merge([tif: "Ioc"], opts))
   end
 
-  defp calculate_slippage_price(opts, is_buy) do
+  defp calculate_slippage_price(opts, is_buy, asset) do
     case Keyword.get(opts, :slippage_price) do
       nil ->
-        # Auto-calculate from mid price
-        coin = Keyword.get(opts, :coin)
+        coin = Keyword.get(opts, :coin) || Cache.coin_from_asset(asset)
         slippage = Keyword.get(opts, :slippage, @default_slippage)
 
         if coin do
@@ -406,7 +411,8 @@ defmodule Hyperliquid.Api.Exchange.Order do
               Float.to_string(price)
           end
         else
-          raise ArgumentError, "Must provide either :slippage_price or :coin for market orders"
+          raise ArgumentError,
+                "Could not resolve coin for asset #{asset}. Provide :slippage_price or :coin, or ensure cache is initialized."
         end
 
       price ->
