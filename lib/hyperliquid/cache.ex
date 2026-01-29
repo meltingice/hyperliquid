@@ -168,7 +168,7 @@ defmodule Hyperliquid.Cache do
           builder_dexs
           |> Enum.with_index()
           |> Enum.reduce(%{"" => 0}, fn {dex, i}, acc ->
-            Map.put(acc, dex, 110_000 + i * 10_000)
+            Map.put(acc, dex, 100_000 + i * 10_000)
           end)
 
         debug("DEX offsets", %{offsets: dex_offsets})
@@ -823,7 +823,7 @@ defmodule Hyperliquid.Cache do
   """
   def get_perp_by_asset(asset) when is_integer(asset) do
     cond do
-      asset < 110_000 ->
+      asset < 100_000 ->
         case get(:perps) do
           nil -> nil
           perps -> Enum.at(perps, asset)
