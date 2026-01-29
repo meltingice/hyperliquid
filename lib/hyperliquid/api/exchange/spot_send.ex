@@ -15,7 +15,7 @@ defmodule Hyperliquid.Api.Exchange.SpotSend do
     - `private_key`: Private key for signing (hex string)
     - `destination`: Destination address
     - `token`: Token identifier (e.g., "USDC:0xeb62eee3685fc4c43992febcd9e75443")
-    - `amount`: Amount to send as string
+    - `amount`: Amount to send (string or number)
     - `opts`: Optional parameters
 
   ## Returns
@@ -27,6 +27,7 @@ defmodule Hyperliquid.Api.Exchange.SpotSend do
       {:ok, result} = SpotSend.request(private_key, "0x...", "HYPE:0x...", "10.0")
   """
   def request(private_key, destination, token, amount, opts \\ []) do
+    amount = to_string(amount)
     time = generate_nonce()
     is_mainnet = Config.mainnet?()
 

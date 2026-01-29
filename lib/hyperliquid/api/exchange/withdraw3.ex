@@ -14,7 +14,7 @@ defmodule Hyperliquid.Api.Exchange.Withdraw3 do
   ## Parameters
     - `private_key`: Private key for signing (hex string)
     - `destination`: Destination address
-    - `amount`: Amount to withdraw as string (1 = $1)
+    - `amount`: Amount to withdraw (string or number, e.g. 1 = $1)
     - `opts`: Optional parameters
 
   ## Returns
@@ -26,6 +26,7 @@ defmodule Hyperliquid.Api.Exchange.Withdraw3 do
       {:ok, result} = Withdraw3.request(private_key, "0x...", "100.0")
   """
   def request(private_key, destination, amount, opts \\ []) do
+    amount = to_string(amount)
     time = generate_nonce()
     is_mainnet = Config.mainnet?()
 
