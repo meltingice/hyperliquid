@@ -370,12 +370,11 @@ defmodule Hyperliquid.Api.Exchange.Order do
   ## Options
     - `:slippage_price` - Far limit price for slippage protection (auto-calculated if not provided)
     - `:slippage` - Slippage percentage (default: 0.05 = 5%)
-    - `:coin` - Coin symbol for mid price lookup (auto-resolved from asset index if not provided)
     - `:reduce_only` - Only reduce position (default: false)
     - `:cloid` - Client order ID
 
-  If neither `:slippage_price` nor `:coin` is provided, the coin is automatically
-  resolved from the asset index via cache reverse lookup.
+  When `:slippage_price` is not provided, the coin is resolved from the asset index
+  via cache reverse lookup and the mid price is used to calculate slippage.
 
   ## Examples
 
@@ -384,9 +383,6 @@ defmodule Hyperliquid.Api.Exchange.Order do
 
       # With explicit slippage price
       Order.market(0, true, "0.1", slippage_price: "100000.0")
-
-      # With explicit coin for mid price lookup
-      Order.market(0, true, "0.1", coin: "BTC", slippage: 0.05)
   """
   @spec market(non_neg_integer(), boolean(), String.t(), keyword()) :: limit_order()
   def market(asset, is_buy, sz, opts \\ []) do
@@ -397,7 +393,7 @@ defmodule Hyperliquid.Api.Exchange.Order do
   defp calculate_slippage_price(opts, is_buy, asset) do
     case Keyword.get(opts, :slippage_price) do
       nil ->
-        coin = Keyword.get(opts, :coin) || Cache.coin_from_asset(asset)
+        coin = Cache.coin_from_asset(asset)
         slippage = Keyword.get(opts, :slippage, @default_slippage)
 
         if coin do
@@ -412,7 +408,7 @@ defmodule Hyperliquid.Api.Exchange.Order do
           end
         else
           raise ArgumentError,
-                "Could not resolve coin for asset #{asset}. Provide :slippage_price or :coin, or ensure cache is initialized."
+                "Could not resolve coin for asset #{asset}. Provide :slippage_price or ensure cache is initialized."
         end
 
       price ->
