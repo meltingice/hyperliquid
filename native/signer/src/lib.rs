@@ -225,8 +225,9 @@ fn sign_l1_agent_action(wallet: &PrivateKeySigner, connection_id: B256, is_mainn
 }
 
 fn signature_to_map<'a>(env: Env<'a>, sig: AlloySignature, connection_id: Option<B256>) -> NifResult<Term<'a>> {
-    let r = format!("0x{:x}", sig.r());
-    let s = format!("0x{:x}", sig.s());
+    // Zero-pad r and s to 64 hex chars (32 bytes) to match expected format
+    let r = format!("0x{:064x}", sig.r());
+    let s = format!("0x{:064x}", sig.s());
     let v = 27u64 + sig.v() as u64;
     let sig_hex = sig.to_string();
 
@@ -627,8 +628,9 @@ fn sign_exchange_action_ex<'a>(
 }
 
 fn chain(is_mainnet: bool) -> (u64, String) {
-    // As used in the SDK examples
-    let chain_id = 421614u64;
+    // Hyperliquid uses chainId 42161 (Arbitrum One) for BOTH mainnet and testnet.
+    // The network distinction is conveyed via the hyperliquidChain field.
+    let chain_id = 42161u64;
     let hyperliquid_chain = if is_mainnet { "Mainnet" } else { "Testnet" }.to_string();
     (chain_id, hyperliquid_chain)
 }

@@ -45,8 +45,7 @@ defmodule Hyperliquid.Api.Exchange.ApproveBuilderFee do
     Http.user_signed_request(action, signature, nonce, opts)
   end
 
-  defp signature_chain_id(true), do: Utils.from_int(42_161)
-  defp signature_chain_id(false), do: Utils.from_int(421_614)
+  defp signature_chain_id(_is_mainnet), do: Utils.from_int(42_161)
 
   defp generate_nonce do
     System.system_time(:millisecond)

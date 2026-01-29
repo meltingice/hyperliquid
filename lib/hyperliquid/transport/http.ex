@@ -209,7 +209,9 @@ defmodule Hyperliquid.Transport.Http do
     payload = %{
       action: action,
       nonce: nonce,
-      signature: signature
+      signature: signature,
+      expiresAfter: nil,
+      vaultAddress: nil
     }
 
     post(url, payload, opts)

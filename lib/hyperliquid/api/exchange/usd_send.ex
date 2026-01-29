@@ -49,8 +49,8 @@ defmodule Hyperliquid.Api.Exchange.UsdSend do
     Http.user_signed_request(action, signature, time, opts)
   end
 
-  defp signature_chain_id(true), do: Utils.from_int(42_161)
-  defp signature_chain_id(false), do: Utils.from_int(421_614)
+  # Hyperliquid uses signatureChainId 42161 (Arbitrum One) for BOTH mainnet and testnet.
+  defp signature_chain_id(_is_mainnet), do: Utils.from_int(42_161)
 
   defp generate_nonce do
     System.system_time(:millisecond)

@@ -41,7 +41,7 @@ defmodule Hyperliquid.Utils do
   """
   @spec from_int(non_neg_integer()) :: String.t()
   def from_int(int) when is_integer(int) and int >= 0 do
-    "0x" <> Integer.to_string(int, 16)
+    "0x" <> String.downcase(Integer.to_string(int, 16))
   end
 
   def numbers_to_strings(struct, fields) do

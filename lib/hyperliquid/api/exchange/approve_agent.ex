@@ -71,7 +71,7 @@ defmodule Hyperliquid.Api.Exchange.ApproveAgent do
     action = %{
       type: "approveAgent",
       hyperliquidChain: if(is_mainnet, do: "Mainnet", else: "Testnet"),
-      signatureChainId: if(is_mainnet, do: Utils.from_int(42_161), else: Utils.from_int(421_614)),
+      signatureChainId: Utils.from_int(42_161),
       agentAddress: agent_address,
       nonce: nonce
     }

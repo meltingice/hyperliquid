@@ -109,11 +109,12 @@ defmodule Hyperliquid.Api.Exchange.SendAsset do
          nonce,
          is_mainnet
        ) do
-    # EIP-712 domain
+    # EIP-712 domain — Hyperliquid uses chainId 42161 (Arbitrum One) for BOTH
+    # mainnet and testnet. The domain name must be "HyperliquidSignTransaction".
     domain = %{
-      name: "Exchange",
+      name: "HyperliquidSignTransaction",
       version: "1",
-      chainId: if(is_mainnet, do: 42_161, else: 421_614),
+      chainId: 42_161,
       verifyingContract: "0x0000000000000000000000000000000000000000"
     }
 
@@ -158,8 +159,9 @@ defmodule Hyperliquid.Api.Exchange.SendAsset do
     Signer.sign_typed_data(private_key, domain_json, types_json, message_json, primary_type)
   end
 
-  defp signature_chain_id(true), do: Utils.from_int(42_161)
-  defp signature_chain_id(false), do: Utils.from_int(421_614)
+  # Hyperliquid uses signatureChainId 42161 (Arbitrum One) for BOTH mainnet and testnet.
+  # The network distinction is conveyed via the hyperliquidChain field ("Mainnet"/"Testnet").
+  defp signature_chain_id(_is_mainnet), do: Utils.from_int(42_161)
 
   defp generate_nonce do
     System.system_time(:millisecond)
