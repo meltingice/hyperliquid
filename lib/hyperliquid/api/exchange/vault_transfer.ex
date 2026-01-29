@@ -30,7 +30,8 @@ defmodule Hyperliquid.Api.Exchange.VaultTransfer do
       # Withdraw from vault
       {:ok, result} = VaultTransfer.request(private_key, "0x...", false, "500.0")
   """
-  def request(private_key, vault_address, is_deposit, usd, opts \\ []) do
+  def request(vault_address, is_deposit, usd, opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     nonce = generate_nonce()
     expires_after = Config.expires_after()
 

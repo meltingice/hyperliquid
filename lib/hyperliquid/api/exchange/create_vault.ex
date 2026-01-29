@@ -27,7 +27,8 @@ defmodule Hyperliquid.Api.Exchange.CreateVault do
       # Create vault with 100 USDC initial balance
       {:ok, result} = CreateVault.request(private_key, "My Vault", "Trading strategy", 100_000_000)
   """
-  def request(private_key, name, description, initial_usd, opts \\ []) do
+  def request(name, description, initial_usd, opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     nonce = generate_nonce()
     expires_after = Config.expires_after()
 

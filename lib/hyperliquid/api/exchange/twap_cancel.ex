@@ -28,7 +28,8 @@ defmodule Hyperliquid.Api.Exchange.TwapCancel do
 
       {:ok, result} = TwapCancel.request(private_key, 0, 12345)
   """
-  def request(private_key, asset, twap_id, opts \\ []) do
+  def request(asset, twap_id, opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     vault_address = Keyword.get(opts, :vault_address)
     nonce = generate_nonce()
     expires_after = Config.expires_after()

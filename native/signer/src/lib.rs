@@ -749,9 +749,17 @@ fn to_checksum_address(address: String) -> NifResult<String> {
     Ok(out)
 }
 
+#[rustler::nif]
+fn derive_address(private_key_hex: String) -> NifResult<String> {
+    let wallet = parse_wallet(&private_key_hex)
+        .map_err(|e| rustler::Error::Term(Box::new(e.to_string())))?;
+    Ok(format!("{}", wallet.address()))
+}
+
 rustler::init!("Elixir.Hyperliquid.Signer", [
     compute_connection_id,
     compute_connection_id_ex,
+    derive_address,
     sign_exchange_action,
     sign_exchange_action_ex,
     sign_l1_action,

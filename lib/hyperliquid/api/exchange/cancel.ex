@@ -35,12 +35,12 @@ defmodule Hyperliquid.Api.Exchange.Cancel do
   Cancel a single order by order ID.
 
   ## Parameters
-    - `private_key`: Private key for signing (hex string)
     - `asset`: Asset index
     - `oid`: Order ID to cancel
     - `opts`: Optional parameters
 
   ## Options
+    - `:private_key` - Private key for signing (falls back to config)
     - `:vault_address` - Cancel on behalf of a vault
 
   ## Returns
@@ -49,23 +49,27 @@ defmodule Hyperliquid.Api.Exchange.Cancel do
 
   ## Examples
 
-      {:ok, result} = Cancel.cancel(private_key, 0, 12345)
+      {:ok, result} = Cancel.cancel(0, 12345)
+
+  ## Breaking Change (v0.2.0)
+  `private_key` was previously the first positional argument. It is now
+  an option in the opts keyword list (`:private_key`).
   """
-  @spec cancel(String.t(), non_neg_integer(), non_neg_integer(), cancel_opts()) ::
+  @spec cancel(non_neg_integer(), non_neg_integer(), cancel_opts()) ::
           {:ok, cancel_response()} | {:error, term()}
-  def cancel(private_key, asset, oid, opts \\ []) do
-    cancel_batch(private_key, [%{asset: asset, oid: oid}], opts)
+  def cancel(asset, oid, opts \\ []) do
+    cancel_batch([%{asset: asset, oid: oid}], opts)
   end
 
   @doc """
   Cancel multiple orders by order ID.
 
   ## Parameters
-    - `private_key`: Private key for signing (hex string)
     - `cancels`: List of cancel requests `[%{asset: 0, oid: 123}, ...]`
     - `opts`: Optional parameters
 
   ## Options
+    - `:private_key` - Private key for signing (falls back to config)
     - `:vault_address` - Cancel on behalf of a vault
 
   ## Returns
@@ -78,11 +82,16 @@ defmodule Hyperliquid.Api.Exchange.Cancel do
         %{asset: 0, oid: 12345},
         %{asset: 0, oid: 12346}
       ]
-      {:ok, result} = Cancel.cancel_batch(private_key, cancels)
+      {:ok, result} = Cancel.cancel_batch(cancels)
+
+  ## Breaking Change (v0.2.0)
+  `private_key` was previously the first positional argument. It is now
+  an option in the opts keyword list (`:private_key`).
   """
-  @spec cancel_batch(String.t(), [cancel_request()], cancel_opts()) ::
+  @spec cancel_batch([cancel_request()], cancel_opts()) ::
           {:ok, cancel_response()} | {:error, term()}
-  def cancel_batch(private_key, cancels, opts \\ []) do
+  def cancel_batch(cancels, opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     vault_address = Keyword.get(opts, :vault_address)
 
     action = build_action(cancels)

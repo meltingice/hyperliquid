@@ -6,16 +6,20 @@ defmodule Hyperliquid.Api.Exchange.ApproveBuilderFee do
   """
 
   alias Hyperliquid.{Config, Signer, Utils}
+  alias Hyperliquid.Api.Exchange.KeyUtils
   alias Hyperliquid.Transport.Http
 
   @doc """
   Approve a builder to charge fees.
 
   ## Parameters
-    - `private_key`: Private key for signing (hex string)
     - `builder`: Builder address
     - `max_fee_rate`: Maximum fee rate in basis points (e.g., "0.001%" = "0.00001")
     - `opts`: Optional parameters
+
+  ## Options
+    - `:private_key` - Private key for signing (falls back to config)
+    - `:expected_address` - When provided, validates the private key derives to this address
 
   ## Returns
     - `{:ok, response}` - Result
@@ -23,9 +27,14 @@ defmodule Hyperliquid.Api.Exchange.ApproveBuilderFee do
 
   ## Examples
 
-      {:ok, result} = ApproveBuilderFee.request(private_key, "0x...", "0.001")
+      {:ok, result} = ApproveBuilderFee.request("0x...", "0.001")
+
+  ## Breaking Change (v0.2.0)
+  `private_key` was previously the first positional argument. It is now
+  an option in the opts keyword list (`:private_key`).
   """
-  def request(private_key, builder, max_fee_rate, opts \\ []) do
+  def request(builder, max_fee_rate, opts \\ []) do
+    private_key = KeyUtils.resolve_and_validate!(opts)
     nonce = generate_nonce()
     is_mainnet = Config.mainnet?()
 

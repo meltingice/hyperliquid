@@ -12,13 +12,13 @@ defmodule Hyperliquid.Api.Exchange.UpdateLeverage do
   Update leverage for a perpetual asset.
 
   ## Parameters
-    - `private_key`: Private key for signing (hex string)
     - `asset`: Asset index
     - `leverage`: New leverage value
     - `is_cross`: true for cross margin, false for isolated
     - `opts`: Optional parameters
 
   ## Options
+    - `:private_key` - Private key for signing (falls back to config)
     - `:vault_address` - Update for a vault
 
   ## Returns
@@ -27,9 +27,14 @@ defmodule Hyperliquid.Api.Exchange.UpdateLeverage do
 
   ## Examples
 
-      {:ok, result} = UpdateLeverage.request(private_key, 0, 10, true)
+      {:ok, result} = UpdateLeverage.request(0, 10, true)
+
+  ## Breaking Change (v0.2.0)
+  `private_key` was previously the first positional argument. It is now
+  an option in the opts keyword list (`:private_key`).
   """
-  def request(private_key, asset, leverage, is_cross, opts \\ []) do
+  def request(asset, leverage, is_cross, opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     vault_address = Keyword.get(opts, :vault_address)
     nonce = generate_nonce()
     expires_after = Config.expires_after()

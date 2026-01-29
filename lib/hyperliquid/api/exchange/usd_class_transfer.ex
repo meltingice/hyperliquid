@@ -32,7 +32,8 @@ defmodule Hyperliquid.Api.Exchange.UsdClassTransfer do
       # Transfer to spot
       {:ok, result} = UsdClassTransfer.request(private_key, "100.0", false)
   """
-  def request(private_key, amount, to_perp, opts \\ []) do
+  def request(amount, to_perp, opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     vault_address = Keyword.get(opts, :vault_address)
     nonce = generate_nonce()
     expires_after = Config.expires_after()

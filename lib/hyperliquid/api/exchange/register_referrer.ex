@@ -24,7 +24,8 @@ defmodule Hyperliquid.Api.Exchange.RegisterReferrer do
 
       {:ok, result} = RegisterReferrer.request(private_key, "MYCODE")
   """
-  def request(private_key, code, opts \\ []) do
+  def request(code, opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     nonce = generate_nonce()
     expires_after = Config.expires_after()
 

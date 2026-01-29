@@ -9,12 +9,15 @@ defmodule Hyperliquid.Api.Exchange.ApproveAgent do
   """
 
   alias Hyperliquid.{Config, Signer, Utils}
+  alias Hyperliquid.Api.Exchange.KeyUtils
   alias Hyperliquid.Transport.Http
 
   # ===================== Types =====================
 
   @type approve_opts :: [
-          agent_name: String.t()
+          agent_name: String.t(),
+          private_key: String.t(),
+          expected_address: String.t()
         ]
 
   @type approve_response :: %{
@@ -28,11 +31,12 @@ defmodule Hyperliquid.Api.Exchange.ApproveAgent do
   Approve an agent to trade on your behalf.
 
   ## Parameters
-    - `private_key`: Private key for signing (hex string)
     - `agent_address`: Address of the agent to approve (0x...)
     - `opts`: Optional parameters
 
   ## Options
+    - `:private_key` - Private key for signing (falls back to config)
+    - `:expected_address` - When provided, validates the private key derives to this address
     - `:agent_name` - Human-readable name for the agent
 
   ## Returns
@@ -42,14 +46,19 @@ defmodule Hyperliquid.Api.Exchange.ApproveAgent do
   ## Examples
 
       # Approve agent with default name
-      {:ok, result} = ApproveAgent.approve(private_key, "0x1234...")
+      {:ok, result} = ApproveAgent.approve("0x1234...")
 
       # Approve agent with custom name
-      {:ok, result} = ApproveAgent.approve(private_key, "0x1234...", agent_name: "Trading Bot")
+      {:ok, result} = ApproveAgent.approve("0x1234...", agent_name: "Trading Bot")
+
+  ## Breaking Change (v0.2.0)
+  `private_key` was previously the first positional argument. It is now
+  an option in the opts keyword list (`:private_key`).
   """
-  @spec approve(String.t(), String.t(), approve_opts()) ::
+  @spec approve(String.t(), approve_opts()) ::
           {:ok, approve_response()} | {:error, term()}
-  def approve(private_key, agent_address, opts \\ []) do
+  def approve(agent_address, opts \\ []) do
+    private_key = KeyUtils.resolve_and_validate!(opts)
     agent_name = Keyword.get(opts, :agent_name)
     nonce = generate_nonce()
 

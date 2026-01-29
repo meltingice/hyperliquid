@@ -27,7 +27,8 @@ defmodule Hyperliquid.Api.Exchange.SubAccountSpotTransfer do
 
       {:ok, result} = SubAccountSpotTransfer.request(private_key, "0x...", true, 1, "100.0")
   """
-  def request(private_key, sub_account_user, is_deposit, token, amount, opts \\ []) do
+  def request(sub_account_user, is_deposit, token, amount, opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     nonce = generate_nonce()
     expires_after = Config.expires_after()
 

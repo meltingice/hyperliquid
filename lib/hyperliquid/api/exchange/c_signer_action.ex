@@ -23,7 +23,8 @@ defmodule Hyperliquid.Api.Exchange.CSignerAction do
 
       {:ok, result} = CSignerAction.unjail(private_key)
   """
-  def unjail(private_key, opts \\ []) do
+  def unjail(opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     nonce = generate_nonce()
     expires_after = Config.expires_after()
 

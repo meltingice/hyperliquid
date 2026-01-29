@@ -24,7 +24,8 @@ defmodule Hyperliquid.Api.Exchange.CWithdraw do
 
       {:ok, result} = CWithdraw.request(private_key, 100_000_000)
   """
-  def request(private_key, wei, opts \\ []) do
+  def request(wei, opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     nonce = generate_nonce()
     is_mainnet = Config.mainnet?()
 

@@ -51,10 +51,10 @@ defmodule Hyperliquid.Api.Exchange.CancelByCloid do
 
       {:ok, result} = CancelByCloid.cancel(private_key, 0, "my-order-1")
   """
-  @spec cancel(String.t(), non_neg_integer(), String.t(), cancel_opts()) ::
+  @spec cancel(non_neg_integer(), String.t(), cancel_opts()) ::
           {:ok, cancel_response()} | {:error, term()}
-  def cancel(private_key, asset, cloid, opts \\ []) do
-    cancel_batch(private_key, [%{asset: asset, cloid: cloid}], opts)
+  def cancel(asset, cloid, opts \\ []) do
+    cancel_batch([%{asset: asset, cloid: cloid}], opts)
   end
 
   @doc """
@@ -80,9 +80,10 @@ defmodule Hyperliquid.Api.Exchange.CancelByCloid do
       ]
       {:ok, result} = CancelByCloid.cancel_batch(private_key, cancels)
   """
-  @spec cancel_batch(String.t(), [cancel_request()], cancel_opts()) ::
+  @spec cancel_batch([cancel_request()], cancel_opts()) ::
           {:ok, cancel_response()} | {:error, term()}
-  def cancel_batch(private_key, cancels, opts \\ []) do
+  def cancel_batch(cancels, opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     vault_address = Keyword.get(opts, :vault_address)
 
     action = build_action(cancels)

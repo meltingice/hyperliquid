@@ -12,7 +12,7 @@ defmodule Hyperliquid.Api.Exchange.ScheduleCancelTest do
 
       # Call the request function - we expect it to fail at the API level,
       # but we can inspect the action structure that was built
-      result = ScheduleCancel.request(@private_key, schedule_time)
+      result = ScheduleCancel.request(schedule_time, private_key: @private_key)
 
       # Should get response (either error tuple or ok with error status)
       case result do
@@ -24,7 +24,7 @@ defmodule Hyperliquid.Api.Exchange.ScheduleCancelTest do
 
     test "builds correct action structure to remove scheduled cancel" do
       # Passing nil should remove the scheduled cancel
-      result = ScheduleCancel.request(@private_key, nil)
+      result = ScheduleCancel.request(nil, private_key: @private_key)
 
       # Should get response (either error tuple or ok with error status)
       case result do
@@ -39,7 +39,7 @@ defmodule Hyperliquid.Api.Exchange.ScheduleCancelTest do
       schedule_time = System.system_time(:millisecond) + 3_600_000
 
       result =
-        ScheduleCancel.request(@private_key, schedule_time, vault_address: vault_address)
+        ScheduleCancel.request(schedule_time, private_key: @private_key, vault_address: vault_address)
 
       # Should get response (either error tuple or ok with error status)
       case result do

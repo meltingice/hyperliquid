@@ -17,7 +17,7 @@ defmodule Hyperliquid.Api.Exchange.SendAssetTest do
       # Call the request function - we expect it to fail at the API level,
       # but we can inspect the action structure that was built
       result =
-        SendAsset.request(@private_key, destination, source_dex, destination_dex, token, amount)
+        SendAsset.request(destination, source_dex, destination_dex, token, amount, private_key: @private_key)
 
       # Should get response (either error tuple or ok with error status)
       case result do
@@ -37,13 +37,13 @@ defmodule Hyperliquid.Api.Exchange.SendAssetTest do
 
       result =
         SendAsset.request(
-          @private_key,
           destination,
           source_dex,
           destination_dex,
           token,
           amount,
-          from_sub_account: from_sub_account
+          from_sub_account: from_sub_account,
+          private_key: @private_key
         )
 
       # Should get response (either error tuple or ok with error status)

@@ -77,4 +77,8 @@ defmodule Hyperliquid.Signer do
   def to_checksum_address(_addr) do
     {:error, {:nif_not_loaded, @nif_error_msg}}
   end
+
+  def derive_address(_private_key_hex) do
+    {:error, {:nif_not_loaded, @nif_error_msg}}
+  end
 end

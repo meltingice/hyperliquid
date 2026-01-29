@@ -31,7 +31,8 @@ defmodule Hyperliquid.Api.Exchange.SubAccountModify do
       # Rename existing sub-account
       {:ok, result} = SubAccountModify.request(private_key, "New Name", sub_account_user: "0x...")
   """
-  def request(private_key, name, opts \\ []) do
+  def request(name, opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     sub_account_user = Keyword.get(opts, :sub_account_user)
     nonce = generate_nonce()
     expires_after = Config.expires_after()

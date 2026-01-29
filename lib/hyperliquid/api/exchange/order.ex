@@ -146,22 +146,28 @@ defmodule Hyperliquid.Api.Exchange.Order do
   Build and place a limit order in one call.
 
   ## Parameters
-    - `private_key`: Private key for signing
     - `coin`: Coin symbol
     - `is_buy`: true for buy, false for sell
     - `limit_px`: Limit price
     - `sz`: Size
     - `opts`: Optional parameters (see `limit_order/5` and `place/3`)
 
+  ## Options
+    - `:private_key` - Private key for signing (falls back to config)
+
   ## Examples
 
-      {:ok, result} = Order.place_limit(private_key, "BTC", true, 50000, 0.1)
-      {:ok, result} = Order.place_limit(private_key, "ETH", false, 3500, 1.5, tif: "Ioc")
+      {:ok, result} = Order.place_limit("BTC", true, 50000, 0.1)
+      {:ok, result} = Order.place_limit("ETH", false, 3500, 1.5, tif: "Ioc", private_key: "abc...")
+
+  ## Breaking Change (v0.2.0)
+  `private_key` was previously the first positional argument. It is now
+  an option in the opts keyword list (`:private_key`).
   """
-  def place_limit(private_key, coin, is_buy, limit_px, sz, opts \\ []) do
+  def place_limit(coin, is_buy, limit_px, sz, opts \\ []) do
     case limit_order(coin, is_buy, limit_px, sz, opts) do
       {:error, _} = error -> error
-      order -> place(private_key, order, opts)
+      order -> place(order, opts)
     end
   end
 
@@ -169,7 +175,6 @@ defmodule Hyperliquid.Api.Exchange.Order do
   Build and place a trigger order in one call.
 
   ## Parameters
-    - `private_key`: Private key for signing
     - `coin`: Coin symbol
     - `is_buy`: true for buy, false for sell
     - `limit_px`: Limit price
@@ -177,14 +182,21 @@ defmodule Hyperliquid.Api.Exchange.Order do
     - `trigger_px`: Trigger price
     - `opts`: Optional parameters (see `trigger_order/6` and `place/3`)
 
+  ## Options
+    - `:private_key` - Private key for signing (falls back to config)
+
   ## Examples
 
-      {:ok, result} = Order.place_trigger(private_key, "BTC", false, 48000, 0.1, 49000, tpsl: "sl")
+      {:ok, result} = Order.place_trigger("BTC", false, 48000, 0.1, 49000, tpsl: "sl")
+
+  ## Breaking Change (v0.2.0)
+  `private_key` was previously the first positional argument. It is now
+  an option in the opts keyword list (`:private_key`).
   """
-  def place_trigger(private_key, coin, is_buy, limit_px, sz, trigger_px, opts \\ []) do
+  def place_trigger(coin, is_buy, limit_px, sz, trigger_px, opts \\ []) do
     case trigger_order(coin, is_buy, limit_px, sz, trigger_px, opts) do
       {:error, _} = error -> error
-      order -> place(private_key, order, opts)
+      order -> place(order, opts)
     end
   end
 
@@ -192,21 +204,27 @@ defmodule Hyperliquid.Api.Exchange.Order do
   Build and place a market order in one call.
 
   ## Parameters
-    - `private_key`: Private key for signing
     - `coin`: Coin symbol
     - `is_buy`: true for buy, false for sell
     - `sz`: Size
     - `opts`: Optional parameters (see `market_order/4` and `place/3`)
 
+  ## Options
+    - `:private_key` - Private key for signing (falls back to config)
+
   ## Examples
 
-      {:ok, result} = Order.place_market(private_key, "BTC", true, 0.1)
-      {:ok, result} = Order.place_market(private_key, "ETH", false, 1.5, slippage: 0.03)
+      {:ok, result} = Order.place_market("BTC", true, 0.1)
+      {:ok, result} = Order.place_market("ETH", false, 1.5, slippage: 0.03)
+
+  ## Breaking Change (v0.2.0)
+  `private_key` was previously the first positional argument. It is now
+  an option in the opts keyword list (`:private_key`).
   """
-  def place_market(private_key, coin, is_buy, sz, opts \\ []) do
+  def place_market(coin, is_buy, sz, opts \\ []) do
     case market_order(coin, is_buy, sz, opts) do
       {:error, _} = error -> error
-      order -> place(private_key, order, opts)
+      order -> place(order, opts)
     end
   end
 
@@ -426,11 +444,11 @@ defmodule Hyperliquid.Api.Exchange.Order do
   Place a single order.
 
   ## Parameters
-    - `private_key`: Private key for signing (hex string)
     - `order`: Order built with `limit/5`, `trigger/6`, or `market/5`
     - `opts`: Optional parameters
 
   ## Options
+    - `:private_key` - Private key for signing (falls back to config)
     - `:vault_address` - Trade on behalf of a vault
     - `:builder` - Builder info for builder fee
 
@@ -441,18 +459,21 @@ defmodule Hyperliquid.Api.Exchange.Order do
   ## Examples
 
       order = Order.limit(0, true, "50000.0", "0.1")
-      {:ok, result} = Order.place(private_key, order)
+      {:ok, result} = Order.place(order)
+
+  ## Breaking Change (v0.2.0)
+  `private_key` was previously the first positional argument. It is now
+  an option in the opts keyword list (`:private_key`).
   """
-  @spec place(String.t(), order(), order_opts()) :: {:ok, order_response()} | {:error, term()}
-  def place(private_key, order, opts \\ []) do
-    place_batch(private_key, [order], :na, opts)
+  @spec place(order(), order_opts()) :: {:ok, order_response()} | {:error, term()}
+  def place(order, opts \\ []) do
+    place_batch([order], :na, opts)
   end
 
   @doc """
   Place multiple orders in a batch.
 
   ## Parameters
-    - `private_key`: Private key for signing (hex string)
     - `orders`: List of orders
     - `grouping`: Order grouping strategy
     - `opts`: Optional parameters
@@ -463,6 +484,7 @@ defmodule Hyperliquid.Api.Exchange.Order do
     - `:position_tpsl` - Attach TP/SL to existing position
 
   ## Options
+    - `:private_key` - Private key for signing (falls back to config)
     - `:vault_address` - Trade on behalf of a vault
     - `:builder` - Builder info for builder fee
 
@@ -476,11 +498,16 @@ defmodule Hyperliquid.Api.Exchange.Order do
         Order.limit(0, true, "50000.0", "0.1"),
         Order.limit(0, true, "49000.0", "0.1")
       ]
-      {:ok, result} = Order.place_batch(private_key, orders, :na)
+      {:ok, result} = Order.place_batch(orders, :na)
+
+  ## Breaking Change (v0.2.0)
+  `private_key` was previously the first positional argument. It is now
+  an option in the opts keyword list (`:private_key`).
   """
-  @spec place_batch(String.t(), [order()], grouping(), order_opts()) ::
+  @spec place_batch([order()], grouping(), order_opts()) ::
           {:ok, order_response()} | {:error, term()}
-  def place_batch(private_key, orders, grouping \\ :na, opts \\ []) do
+  def place_batch(orders, grouping \\ :na, opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     vault_address = Keyword.get(opts, :vault_address)
     builder = Keyword.get(opts, :builder)
 

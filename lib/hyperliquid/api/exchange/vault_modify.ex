@@ -43,7 +43,8 @@ defmodule Hyperliquid.Api.Exchange.VaultModify do
         allow_deposits: false
       )
   """
-  def request(private_key, opts \\ []) do
+  def request(opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     vault_address = Keyword.get(opts, :vault_address)
     nonce = generate_nonce()
     expires_after = Config.expires_after()

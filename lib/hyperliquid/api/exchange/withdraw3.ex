@@ -6,16 +6,20 @@ defmodule Hyperliquid.Api.Exchange.Withdraw3 do
   """
 
   alias Hyperliquid.{Config, Signer, Utils}
+  alias Hyperliquid.Api.Exchange.KeyUtils
   alias Hyperliquid.Transport.Http
 
   @doc """
   Initiate a withdrawal request.
 
   ## Parameters
-    - `private_key`: Private key for signing (hex string)
     - `destination`: Destination address
     - `amount`: Amount to withdraw (string or number, e.g. 1 = $1)
     - `opts`: Optional parameters
+
+  ## Options
+    - `:private_key` - Private key for signing (falls back to config)
+    - `:expected_address` - When provided, validates the private key derives to this address
 
   ## Returns
     - `{:ok, response}` - Withdrawal result
@@ -23,9 +27,14 @@ defmodule Hyperliquid.Api.Exchange.Withdraw3 do
 
   ## Examples
 
-      {:ok, result} = Withdraw3.request(private_key, "0x...", "100.0")
+      {:ok, result} = Withdraw3.request("0x...", "100.0")
+
+  ## Breaking Change (v0.2.0)
+  `private_key` was previously the first positional argument. It is now
+  an option in the opts keyword list (`:private_key`).
   """
-  def request(private_key, destination, amount, opts \\ []) do
+  def request(destination, amount, opts \\ []) do
+    private_key = KeyUtils.resolve_and_validate!(opts)
     amount = to_string(amount)
     time = generate_nonce()
     is_mainnet = Config.mainnet?()

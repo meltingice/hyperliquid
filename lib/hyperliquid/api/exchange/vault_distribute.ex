@@ -24,7 +24,8 @@ defmodule Hyperliquid.Api.Exchange.VaultDistribute do
 
       {:ok, result} = VaultDistribute.request(private_key, "0x...")
   """
-  def request(private_key, vault_address, opts \\ []) do
+  def request(vault_address, opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     nonce = generate_nonce()
     expires_after = Config.expires_after()
 

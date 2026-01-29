@@ -33,7 +33,8 @@ defmodule Hyperliquid.Api.Exchange.UpdateIsolatedMargin do
       # Remove margin
       {:ok, result} = UpdateIsolatedMargin.request(private_key, 0, true, -50)
   """
-  def request(private_key, asset, is_buy, ntli, opts \\ []) do
+  def request(asset, is_buy, ntli, opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     vault_address = Keyword.get(opts, :vault_address)
     nonce = generate_nonce()
     expires_after = Config.expires_after()

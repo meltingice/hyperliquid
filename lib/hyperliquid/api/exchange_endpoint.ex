@@ -107,11 +107,19 @@ defmodule Hyperliquid.Api.ExchangeEndpoint do
         Execute the exchange action.
 
         ## Parameters
-        - `private_key` - Private key for signing
         - `param` - Parameter passed to build_action/1
-        - `opts` - Options (vault_address, etc.)
+        - `opts` - Options (private_key, vault_address, etc.)
+
+        ## Options
+        - `:private_key` - Private key for signing (falls back to config)
+        - `:vault_address` - Vault address for vault operations
+
+        ## Breaking Change (v0.2.0)
+        `private_key` was previously the first positional argument. It is now
+        an option in the opts keyword list (`:private_key`).
         """
-        def request(private_key, param, opts \\ []) do
+        def request(param, opts \\ []) do
+          private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
           action = build_action(param)
           execute_l1_action(private_key, action, opts)
         end
@@ -210,10 +218,18 @@ defmodule Hyperliquid.Api.ExchangeEndpoint do
         Execute the exchange action.
 
         ## Parameters
-        - `private_key` - Private key for signing
-        - `opts` - Options (vault_address, etc.)
+        - `opts` - Options (private_key, vault_address, etc.)
+
+        ## Options
+        - `:private_key` - Private key for signing (falls back to config)
+        - `:vault_address` - Vault address for vault operations
+
+        ## Breaking Change (v0.2.0)
+        `private_key` was previously the first positional argument. It is now
+        an option in the opts keyword list (`:private_key`).
         """
-        def request(private_key, opts \\ []) do
+        def request(opts \\ []) do
+          private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
           action = %{type: unquote(action_type)}
           execute_l1_action(private_key, action, opts)
         end

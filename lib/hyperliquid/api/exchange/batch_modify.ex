@@ -40,11 +40,11 @@ defmodule Hyperliquid.Api.Exchange.BatchModify do
   Modify multiple orders in a batch.
 
   ## Parameters
-    - `private_key`: Private key for signing (hex string)
     - `modifies`: List of modify requests `[%{oid: 123, order: order}, ...]`
     - `opts`: Optional parameters
 
   ## Options
+    - `:private_key` - Private key for signing (falls back to config)
     - `:vault_address` - Modify on behalf of a vault
 
   ## Returns
@@ -57,11 +57,16 @@ defmodule Hyperliquid.Api.Exchange.BatchModify do
         %{oid: 12345, order: Order.limit(0, true, "51000.0", "0.1")},
         %{oid: 12346, order: Order.limit(0, true, "52000.0", "0.1")}
       ]
-      {:ok, result} = BatchModify.modify_batch(private_key, modifies)
+      {:ok, result} = BatchModify.modify_batch(modifies)
+
+  ## Breaking Change (v0.2.0)
+  `private_key` was previously the first positional argument. It is now
+  an option in the opts keyword list (`:private_key`).
   """
-  @spec modify_batch(String.t(), [modify_request()], modify_opts()) ::
+  @spec modify_batch([modify_request()], modify_opts()) ::
           {:ok, modify_response()} | {:error, term()}
-  def modify_batch(private_key, modifies, opts \\ []) do
+  def modify_batch(modifies, opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     vault_address = Keyword.get(opts, :vault_address)
 
     action = build_action(modifies)

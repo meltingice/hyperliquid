@@ -11,7 +11,7 @@ defmodule Hyperliquid.Api.Exchange.CreateSubAccountTest do
 
       # Call the request function - we expect it to fail at the API level,
       # but we can inspect the action structure that was built
-      result = CreateSubAccount.request(@private_key, name)
+      result = CreateSubAccount.request(name, private_key: @private_key)
 
       # Should get response (either error tuple or ok with error status)
       # Both indicate action was built correctly

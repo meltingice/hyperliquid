@@ -34,7 +34,8 @@ defmodule Hyperliquid.Api.Exchange.TwapOrder do
 
       {:ok, result} = TwapOrder.request(private_key, 0, true, "1.0", duration_minutes: 30)
   """
-  def request(private_key, asset, is_buy, sz, opts \\ []) do
+  def request(asset, is_buy, sz, opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     vault_address = Keyword.get(opts, :vault_address)
     nonce = generate_nonce()
     expires_after = Config.expires_after()

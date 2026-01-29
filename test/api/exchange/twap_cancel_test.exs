@@ -9,7 +9,7 @@ defmodule Hyperliquid.Api.Exchange.TwapCancelTest do
     test "builds correct action structure for basic twap cancel" do
       # Call the request function - we expect it to fail at the API level,
       # but we can inspect the action structure that was built
-      result = TwapCancel.request(@private_key, 0, 12345)
+      result = TwapCancel.request(0, 12345, private_key: @private_key)
 
       # Should get response (either error tuple or ok with error status)
       # Both indicate action was built correctly
@@ -23,7 +23,7 @@ defmodule Hyperliquid.Api.Exchange.TwapCancelTest do
     test "builds correct action structure with vault address" do
       vault_address = "0x1234567890123456789012345678901234567890"
 
-      result = TwapCancel.request(@private_key, 1, 67890, vault_address: vault_address)
+      result = TwapCancel.request(1, 67890, private_key: @private_key, vault_address: vault_address)
 
       # Should get response (either error tuple or ok with error status)
       case result do

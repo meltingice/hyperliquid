@@ -26,7 +26,8 @@ defmodule Hyperliquid.Api.Exchange.SubAccountTransfer do
 
       {:ok, result} = SubAccountTransfer.request(private_key, "0x...", true, 1000000)
   """
-  def request(private_key, sub_account_user, is_deposit, usd, opts \\ []) do
+  def request(sub_account_user, is_deposit, usd, opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     nonce = generate_nonce()
     expires_after = Config.expires_after()
 

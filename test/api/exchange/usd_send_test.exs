@@ -13,7 +13,7 @@ defmodule Hyperliquid.Api.Exchange.UsdSendTest do
 
       # Call the request function - we expect it to fail at the API level,
       # but we can inspect the action structure that was built
-      result = UsdSend.request(@private_key, destination, amount)
+      result = UsdSend.request(destination, amount, private_key: @private_key)
 
       # Should get response (either error tuple or ok with error status)
       case result do
@@ -29,7 +29,7 @@ defmodule Hyperliquid.Api.Exchange.UsdSendTest do
       test_amounts = ["1.0", "50.25", "1000.123456"]
 
       for amount <- test_amounts do
-        result = UsdSend.request(@private_key, destination, amount)
+        result = UsdSend.request(destination, amount, private_key: @private_key)
 
         case result do
           {:error, _} -> :ok

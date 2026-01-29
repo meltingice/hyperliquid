@@ -25,7 +25,8 @@ defmodule Hyperliquid.Api.Exchange.CDeposit do
       # Deposit 1 HYPE (1 * 1e8 = 100000000)
       {:ok, result} = CDeposit.request(private_key, 100_000_000)
   """
-  def request(private_key, wei, opts \\ []) do
+  def request(wei, opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     nonce = generate_nonce()
     is_mainnet = Config.mainnet?()
 

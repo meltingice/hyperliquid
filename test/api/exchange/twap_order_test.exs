@@ -10,7 +10,7 @@ defmodule Hyperliquid.Api.Exchange.TwapOrderTest do
     test "builds correct action structure for basic twap order" do
       # Call the request function - we expect it to fail at the API level,
       # but we can inspect the action structure that was built
-      result = TwapOrder.request(@private_key, 0, true, "1.0")
+      result = TwapOrder.request(0, true, "1.0", private_key: @private_key)
 
       # Should get response (either error tuple or ok with error status)
       case result do
@@ -21,7 +21,7 @@ defmodule Hyperliquid.Api.Exchange.TwapOrderTest do
     end
 
     test "builds correct action with custom duration" do
-      result = TwapOrder.request(@private_key, 0, true, "1.0", duration_minutes: 30)
+      result = TwapOrder.request(0, true, "1.0", duration_minutes: 30, private_key: @private_key)
 
       # Should get response (either error tuple or ok with error status)
       case result do
@@ -32,7 +32,7 @@ defmodule Hyperliquid.Api.Exchange.TwapOrderTest do
     end
 
     test "builds correct action with reduce_only flag" do
-      result = TwapOrder.request(@private_key, 0, false, "0.5", reduce_only: true)
+      result = TwapOrder.request(0, false, "0.5", reduce_only: true, private_key: @private_key)
 
       # Should get response (either error tuple or ok with error status)
       case result do
@@ -44,9 +44,10 @@ defmodule Hyperliquid.Api.Exchange.TwapOrderTest do
 
     test "builds correct action with randomize flag" do
       result =
-        TwapOrder.request(@private_key, 1, true, "2.0",
+        TwapOrder.request(1, true, "2.0",
           duration_minutes: 15,
-          randomize: true
+          randomize: true,
+          private_key: @private_key
         )
 
       # Should get response (either error tuple or ok with error status)
@@ -61,9 +62,10 @@ defmodule Hyperliquid.Api.Exchange.TwapOrderTest do
       vault_address = "0x1234567890123456789012345678901234567890"
 
       result =
-        TwapOrder.request(@private_key, 0, true, "1.0",
+        TwapOrder.request(0, true, "1.0",
           vault_address: vault_address,
-          duration_minutes: 10
+          duration_minutes: 10,
+          private_key: @private_key
         )
 
       # Should get response (either error tuple or ok with error status)

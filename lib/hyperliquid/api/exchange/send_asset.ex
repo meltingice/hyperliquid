@@ -6,13 +6,13 @@ defmodule Hyperliquid.Api.Exchange.SendAsset do
   """
 
   alias Hyperliquid.{Config, Signer, Utils}
+  alias Hyperliquid.Api.Exchange.KeyUtils
   alias Hyperliquid.Transport.Http
 
   @doc """
   Transfer tokens between different perp DEXs, spot balance, users, and/or sub-accounts.
 
   ## Parameters
-    - `private_key`: Private key for signing (hex string)
     - `destination`: Destination address
     - `source_dex`: Source DEX ("" for default USDC perp DEX, "spot" for spot)
     - `destination_dex`: Destination DEX ("" for default USDC perp DEX, "spot" for spot)
@@ -21,6 +21,8 @@ defmodule Hyperliquid.Api.Exchange.SendAsset do
     - `opts`: Optional parameters
 
   ## Options
+    - `:private_key` - Private key for signing (falls back to config)
+    - `:expected_address` - When provided, validates the private key derives to this address
     - `:from_sub_account` - Source sub-account address ("" for main account, default: "")
 
   ## Returns
@@ -31,7 +33,6 @@ defmodule Hyperliquid.Api.Exchange.SendAsset do
 
       # Transfer from perp to spot
       {:ok, result} = SendAsset.request(
-        private_key,
         "0x...",
         "",
         "spot",
@@ -39,19 +40,11 @@ defmodule Hyperliquid.Api.Exchange.SendAsset do
         "100.0"
       )
 
-      # Transfer from sub-account
-      {:ok, result} = SendAsset.request(
-        private_key,
-        "0x...",
-        "",
-        "",
-        "USDC:0xeb62eee3685fc4c43992febcd9e75443",
-        "50.0",
-        from_sub_account: "0x..."
-      )
+  ## Breaking Change (v0.2.0)
+  `private_key` was previously the first positional argument. It is now
+  an option in the opts keyword list (`:private_key`).
   """
   def request(
-        private_key,
         destination,
         source_dex,
         destination_dex,
@@ -59,6 +52,7 @@ defmodule Hyperliquid.Api.Exchange.SendAsset do
         amount,
         opts \\ []
       ) do
+    private_key = KeyUtils.resolve_and_validate!(opts)
     time = generate_nonce()
     is_mainnet = Config.mainnet?()
     from_sub_account = Keyword.get(opts, :from_sub_account, "")

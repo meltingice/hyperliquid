@@ -24,7 +24,8 @@ defmodule Hyperliquid.Api.Exchange.CreateSubAccount do
 
       {:ok, result} = CreateSubAccount.request(private_key, "Trading Bot")
   """
-  def request(private_key, name, opts \\ []) do
+  def request(name, opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     nonce = generate_nonce()
     expires_after = Config.expires_after()
 

@@ -35,7 +35,8 @@ defmodule Hyperliquid.Api.Exchange.CValidatorAction do
         wei: 100_000_000
       )
   """
-  def request(private_key, action_type, params, opts \\ []) do
+  def request(action_type, params, opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     nonce = generate_nonce()
     expires_after = Config.expires_after()
 

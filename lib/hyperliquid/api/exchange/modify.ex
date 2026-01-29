@@ -29,12 +29,12 @@ defmodule Hyperliquid.Api.Exchange.Modify do
   Modify a single order.
 
   ## Parameters
-    - `private_key`: Private key for signing (hex string)
     - `oid`: Order ID to modify (integer or hex string for Client Order ID)
     - `order`: New order parameters (built with `Order.limit_order/4` or `Order.trigger_order/5`)
     - `opts`: Optional parameters
 
   ## Options
+    - `:private_key` - Private key for signing (falls back to config)
     - `:vault_address` - Modify on behalf of a vault
 
   ## Returns
@@ -47,11 +47,15 @@ defmodule Hyperliquid.Api.Exchange.Modify do
       alias Hyperliquid.Api.Exchange.{Modify, Order}
 
       new_order = Order.limit_order("BTC", true, "51000.0", "0.1")
-      {:ok, result} = Modify.modify(private_key, 12345, new_order)
+      {:ok, result} = Modify.modify(12345, new_order)
+
+  ## Breaking Change (v0.2.0)
+  `private_key` was previously the first positional argument. It is now
+  an option in the opts keyword list (`:private_key`).
   """
-  @spec modify(String.t(), non_neg_integer() | String.t(), Order.order(), modify_opts()) ::
+  @spec modify(non_neg_integer() | String.t(), Order.order(), modify_opts()) ::
           {:ok, modify_response()} | {:error, term()}
-  def modify(private_key, oid, order, opts \\ []) do
+  def modify(oid, order, opts \\ []) do
     # Note: The API doesn't have a separate "modify" action type.
     # Instead, we use "batchModify" with a single modification.
     # This is the supported way to modify a single order.
@@ -62,7 +66,7 @@ defmodule Hyperliquid.Api.Exchange.Modify do
       vault_address: Keyword.get(opts, :vault_address)
     })
 
-    BatchModify.modify_batch(private_key, [%{oid: oid, order: order}], opts)
+    BatchModify.modify_batch([%{oid: oid, order: order}], opts)
   end
 
   # ===================== Helper Functions =====================

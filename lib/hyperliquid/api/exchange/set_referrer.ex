@@ -24,7 +24,8 @@ defmodule Hyperliquid.Api.Exchange.SetReferrer do
 
       {:ok, result} = SetReferrer.request(private_key, "ABC123")
   """
-  def request(private_key, code, opts \\ []) do
+  def request(code, opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     nonce = generate_nonce()
     expires_after = Config.expires_after()
 

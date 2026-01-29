@@ -24,7 +24,8 @@ defmodule Hyperliquid.Api.Exchange.AgentEnableDexAbstraction do
 
       {:ok, result} = AgentEnableDexAbstraction.request(private_key, true)
   """
-  def request(private_key, enabled, opts \\ []) do
+  def request(enabled, opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     nonce = generate_nonce()
     expires_after = Config.expires_after()
 

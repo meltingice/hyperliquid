@@ -6,16 +6,20 @@ defmodule Hyperliquid.Api.Exchange.UsdSend do
   """
 
   alias Hyperliquid.{Config, Signer, Utils}
+  alias Hyperliquid.Api.Exchange.KeyUtils
   alias Hyperliquid.Transport.Http
 
   @doc """
   Send USD to another address.
 
   ## Parameters
-    - `private_key`: Private key for signing (hex string)
     - `destination`: Destination address
     - `amount`: Amount to send (string or number, e.g. 1 = $1)
     - `opts`: Optional parameters
+
+  ## Options
+    - `:private_key` - Private key for signing (falls back to config)
+    - `:expected_address` - When provided, validates the private key derives to this address
 
   ## Returns
     - `{:ok, response}` - Transfer result
@@ -23,9 +27,15 @@ defmodule Hyperliquid.Api.Exchange.UsdSend do
 
   ## Examples
 
-      {:ok, result} = UsdSend.request(private_key, "0x...", "100.0")
+      {:ok, result} = UsdSend.request("0x...", "100.0")
+      {:ok, result} = UsdSend.request("0x...", "100.0", private_key: "abc...")
+
+  ## Breaking Change (v0.2.0)
+  `private_key` was previously the first positional argument. It is now
+  an option in the opts keyword list (`:private_key`).
   """
-  def request(private_key, destination, amount, opts \\ []) do
+  def request(destination, amount, opts \\ []) do
+    private_key = KeyUtils.resolve_and_validate!(opts)
     amount = to_string(amount)
     time = generate_nonce()
     is_mainnet = Config.mainnet?()

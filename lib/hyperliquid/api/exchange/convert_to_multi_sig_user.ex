@@ -25,7 +25,8 @@ defmodule Hyperliquid.Api.Exchange.ConvertToMultiSigUser do
 
       {:ok, result} = ConvertToMultiSigUser.request(private_key, ["0x...", "0x..."], 2)
   """
-  def request(private_key, authorized_users, threshold, opts \\ []) do
+  def request(authorized_users, threshold, opts \\ []) do
+    private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
     nonce = generate_nonce()
     expires_after = Config.expires_after()
 

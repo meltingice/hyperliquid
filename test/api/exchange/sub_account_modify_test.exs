@@ -12,7 +12,7 @@ defmodule Hyperliquid.Api.Exchange.SubAccountModifyTest do
 
       # Call the request function - we expect it to fail at the API level,
       # but we can inspect the action structure that was built
-      result = SubAccountModify.request(@private_key, name, sub_account_user: sub_account_user)
+      result = SubAccountModify.request(name, sub_account_user: sub_account_user, private_key: @private_key)
 
       # Should get response (either error tuple or ok with error status)
       case result do
