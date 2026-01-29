@@ -26,6 +26,7 @@ defmodule Hyperliquid.Api.Registry do
     info: [
       Hyperliquid.Api.Info.ActiveAssetData,
       Hyperliquid.Api.Info.AlignedQuoteTokenInfo,
+      Hyperliquid.Api.Info.AllBorrowLendReserveStates,
       Hyperliquid.Api.Info.AllMids,
       Hyperliquid.Api.Info.AllPerpMetas,
       Hyperliquid.Api.Info.CandleSnapshot,
