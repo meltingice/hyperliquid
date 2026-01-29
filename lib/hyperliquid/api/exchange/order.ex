@@ -404,7 +404,9 @@ defmodule Hyperliquid.Api.Exchange.Order do
 
             mid_price ->
               price = if is_buy, do: mid_price * (1 + slippage), else: mid_price * (1 - slippage)
-              Float.to_string(price)
+              sz_decimals = Cache.sz_decimals_by_asset(asset)
+              is_perp = asset < 10_000
+              Format.format_price(price, sz_decimals, perp: is_perp)
           end
         else
           raise ArgumentError,
@@ -412,7 +414,9 @@ defmodule Hyperliquid.Api.Exchange.Order do
         end
 
       price ->
-        price
+        sz_decimals = Cache.sz_decimals_by_asset(asset)
+        is_perp = asset < 10_000
+        Format.format_price(price, sz_decimals, perp: is_perp)
     end
   end
 
