@@ -91,8 +91,15 @@ defmodule Hyperliquid.Api.Registry do
       Hyperliquid.Api.Exchange.Noop,
       Hyperliquid.Api.Exchange.SetDisplayName
     ],
-    explorer: [],
-    stats: []
+    explorer: [
+      Hyperliquid.Api.Explorer.BlockDetails,
+      Hyperliquid.Api.Explorer.TxDetails,
+      Hyperliquid.Api.Explorer.UserDetails
+    ],
+    stats: [
+      Hyperliquid.Api.Stats.Leaderboard,
+      Hyperliquid.Api.Stats.Vaults
+    ]
   }
 
   # Flatten all endpoints for backwards compatibility
