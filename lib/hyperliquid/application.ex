@@ -23,11 +23,6 @@ defmodule Hyperliquid.Application do
         {Phoenix.PubSub, name: Hyperliquid.PubSub},
         {Cachex, [
           name: @cache,
-          expiration: expiration(
-            default: Config.cache_default_ttl(),
-            interval: Config.cache_janitor_interval(),
-            lazy: true
-          ),
           hooks: [
             hook(module: Cachex.Limit.Scheduled, args: {
               Config.cache_max_entries(),

@@ -69,7 +69,8 @@ defmodule Hyperliquid.Cache.Warmer do
     state = %{
       initialized: false,
       retry_count: 0,
-      last_error: nil
+      last_error: nil,
+      mids_subscription: nil
     }
 
     # Fast return - cache init happens in handle_continue
@@ -81,11 +82,13 @@ defmodule Hyperliquid.Cache.Warmer do
     case Cache.init_with_partial_success() do
       :ok ->
         Logger.info("[Cache.Warmer] Cache initialized successfully")
-        {:noreply, %{state | initialized: true, retry_count: 0, last_error: nil}}
+        mids_sub_id = subscribe_to_live_mids()
+        {:noreply, %{state | initialized: true, retry_count: 0, last_error: nil, mids_subscription: mids_sub_id}}
 
       {:ok, :partial, failed_keys} ->
         Logger.warning("[Cache.Warmer] Cache partially initialized, failed keys: #{inspect(failed_keys)}")
-        {:noreply, %{state | initialized: true, retry_count: 0, last_error: {:partial, failed_keys}}}
+        mids_sub_id = subscribe_to_live_mids()
+        {:noreply, %{state | initialized: true, retry_count: 0, last_error: {:partial, failed_keys}, mids_subscription: mids_sub_id}}
 
       {:error, reason} = error ->
         new_retry_count = state.retry_count + 1
@@ -120,5 +123,19 @@ defmodule Hyperliquid.Cache.Warmer do
   @impl true
   def handle_call(:status, _from, state) do
     {:reply, state, state}
+  end
+
+  # ===================== Private Helpers =====================
+
+  defp subscribe_to_live_mids do
+    case Cache.subscribe_to_mids() do
+      {:ok, sub_id} ->
+        Logger.info("[Cache.Warmer] Subscribed to live mid price updates")
+        sub_id
+
+      {:error, reason} ->
+        Logger.warning("[Cache.Warmer] Failed to subscribe to live mids", error: inspect(reason))
+        nil
+    end
   end
 end

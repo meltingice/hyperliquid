@@ -852,7 +852,7 @@ defmodule Hyperliquid.WebSocket.Manager do
   # Check if module has storage enabled and store event asynchronously
   # subscription_params contains context like user address for user_grouped subscriptions
   defp maybe_store_event(module, subscription_params, message) do
-    Logger.info(
+    Logger.debug(
       "[Manager] Maybe Store #{inspect(module)} #{function_exported?(module, :storage_enabled?, 0)} #{inspect(module.storage_enabled?())}"
     )
 
@@ -865,7 +865,7 @@ defmodule Hyperliquid.WebSocket.Manager do
         # Merge subscription params (e.g., user) into event data for context
         storage_data = merge_subscription_context(event_data, subscription_params)
         Hyperliquid.Storage.Writer.store_async(module, storage_data)
-        Logger.info("[Manager] SAVED with context: #{inspect(Map.keys(subscription_params || %{}))}")
+        Logger.debug("[Manager] SAVED with context: #{inspect(Map.keys(subscription_params || %{}))}")
       end
     end
   rescue

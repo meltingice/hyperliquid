@@ -280,6 +280,12 @@ defmodule Hyperliquid.WebSocket.Connection do
   end
 
   @impl true
+  def handle_info({:gun_up, _conn, _protocol}, state) do
+    # Gun connection established (before WS upgrade) — handled via :gun_upgrade
+    {:noreply, state}
+  end
+
+  @impl true
   def handle_info(msg, state) do
     Logger.debug("Unhandled message: #{inspect(msg)}")
     {:noreply, state}
@@ -314,6 +320,8 @@ defmodule Hyperliquid.WebSocket.Connection do
     opts = %{
       protocols: [:http],
       transport: :tls,
+      # Disable gun's built-in retry — we manage reconnection ourselves
+      retry: 0,
       tls_opts: [
         verify: :verify_peer,
         cacerts: :public_key.cacerts_get(),
@@ -419,6 +427,12 @@ defmodule Hyperliquid.WebSocket.Connection do
       send(state.manager, {:ws_message, self(), message})
     end
 
+    {:noreply, state}
+  end
+
+  defp handle_disconnect(%State{status: status} = state)
+       when status in [:disconnected, :reconnecting] do
+    # Already handling disconnect — avoid duplicate reconnect scheduling
     {:noreply, state}
   end
 
