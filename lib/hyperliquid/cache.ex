@@ -254,24 +254,20 @@ defmodule Hyperliquid.Cache do
       end)
 
     # Store meta-related data (only if we have it)
-    # META TTL for perp_meta, perp_meta_by_dex, perps
-    # DEFAULT TTL for dex_offsets, margin_tables, ctxs
     if base_meta do
-      cache_put(:perp_meta, base_meta, expire: Config.cache_meta_ttl())
-      cache_put(:perp_meta_by_dex, perp_meta_by_dex, expire: Config.cache_meta_ttl())
+      cache_put(:perp_meta, base_meta)
+      cache_put(:perp_meta_by_dex, perp_meta_by_dex)
       cache_put(:dex_offsets, dex_offsets)
       cache_put(:margin_tables, margin_tables)
-      cache_put(:perps, Map.get(base_meta, "universe", []), expire: Config.cache_meta_ttl())
+      cache_put(:perps, Map.get(base_meta, "universe", []))
       cache_put(:ctxs, ctxs)
     end
 
     # Store spot-related data
-    # META TTL for spot_meta, spot_pairs, tokens
-    # DEFAULT TTL for spot_ctxs, spot_pair_asset_map, spot_pair_id_map, spot_pair_decimals
     if spot_meta do
-      cache_put(:spot_meta, spot_meta, expire: Config.cache_meta_ttl())
-      cache_put(:spot_pairs, Map.get(spot_meta, "universe", []), expire: Config.cache_meta_ttl())
-      cache_put(:tokens, Map.get(spot_meta, "tokens", []), expire: Config.cache_meta_ttl())
+      cache_put(:spot_meta, spot_meta)
+      cache_put(:spot_pairs, Map.get(spot_meta, "universe", []))
+      cache_put(:tokens, Map.get(spot_meta, "tokens", []))
       cache_put(:spot_ctxs, spot_ctxs)
 
       # Build spot pair mappings (BASE/QUOTE format)
@@ -283,13 +279,13 @@ defmodule Hyperliquid.Cache do
       cache_put(:spot_pair_decimals, spot_pair_decimals)
     end
 
-    # Store mids if available (MIDS TTL - shorter due to frequent updates)
+    # Store mids if available
     if mids_data do
       debug("Storing mids", %{mids_count: map_size(mids_data)})
-      cache_put(:all_mids, mids_data, expire: Config.cache_mids_ttl())
+      cache_put(:all_mids, mids_data)
     end
 
-    # Store combined maps (only if we have any data) - DEFAULT TTL
+    # Store combined maps (only if we have any data)
     if map_size(asset_map) > 0 do
       cache_put(:asset_map, asset_map)
       cache_put(:decimal_map, decimal_map)
@@ -300,10 +296,9 @@ defmodule Hyperliquid.Cache do
     :ok
   end
 
-  # TTL-aware cache put that handles Cachex.put/3 result (not put!/3)
-  defp cache_put(key, value, opts \\ []) do
-    ttl = Keyword.get(opts, :expire, Config.cache_default_ttl())
-    case Cachex.put(@cache, key, value, expire: ttl) do
+  # Simple cache put without TTL - entries persist until manually updated or cleared
+  defp cache_put(key, value) do
+    case Cachex.put(@cache, key, value) do
       {:ok, true} -> :ok
       {:error, reason} ->
         Logger.warning("[Cache] Failed to store #{inspect(key)}", error: inspect(reason))
@@ -412,23 +407,20 @@ defmodule Hyperliquid.Cache do
       # Store mids with original string keys (no transformation)
       debug("Storing mids", %{mids_count: map_size(mids)})
 
-      # Store all data with appropriate TTLs
-      # META TTL for perp_meta, perp_meta_by_dex, spot_meta, perps, spot_pairs, tokens
-      # MIDS TTL for all_mids
-      # DEFAULT TTL for others
-      cache_put(:perp_meta, base_meta, expire: Config.cache_meta_ttl())
-      cache_put(:perp_meta_by_dex, perp_meta_by_dex, expire: Config.cache_meta_ttl())
+      # Store all data (no TTL - entries persist until updated)
+      cache_put(:perp_meta, base_meta)
+      cache_put(:perp_meta_by_dex, perp_meta_by_dex)
       cache_put(:dex_offsets, dex_offsets)
       cache_put(:margin_tables, margin_tables)
-      cache_put(:spot_meta, spot_meta, expire: Config.cache_meta_ttl())
-      cache_put(:all_mids, mids, expire: Config.cache_mids_ttl())
+      cache_put(:spot_meta, spot_meta)
+      cache_put(:all_mids, mids)
       cache_put(:asset_map, asset_map)
       cache_put(:decimal_map, decimal_map)
       cache_put(:asset_to_sz_decimals, asset_to_sz_decimals)
       cache_put(:asset_to_price_decimals, asset_to_price_decimals)
-      cache_put(:perps, Map.get(base_meta, "universe", []), expire: Config.cache_meta_ttl())
-      cache_put(:spot_pairs, Map.get(spot_meta, "universe", []), expire: Config.cache_meta_ttl())
-      cache_put(:tokens, Map.get(spot_meta, "tokens", []), expire: Config.cache_meta_ttl())
+      cache_put(:perps, Map.get(base_meta, "universe", []))
+      cache_put(:spot_pairs, Map.get(spot_meta, "universe", []))
+      cache_put(:tokens, Map.get(spot_meta, "tokens", []))
       cache_put(:ctxs, ctxs)
       cache_put(:spot_ctxs, spot_ctxs)
 
@@ -616,6 +608,38 @@ defmodule Hyperliquid.Cache do
   ## Returns
     - Size decimals as integer, or nil if not found
   """
+  @doc """
+  Get the coin symbol for an asset index (reverse lookup).
+
+  ## Parameters
+    - `asset`: Asset index as integer
+
+  ## Returns
+    - Coin symbol as string, or nil if not found
+
+  ## Example
+
+      Hyperliquid.Cache.coin_from_asset(0)
+      # => "BTC"
+  """
+  def coin_from_asset(asset) when is_integer(asset) do
+    if asset >= 10_000 and asset < 100_000 do
+      case get(:spot_pair_asset_map) do
+        nil -> nil
+        map -> find_key_by_value(map, asset)
+      end
+    else
+      case get(:asset_map) do
+        nil -> nil
+        map -> find_key_by_value(map, asset)
+      end
+    end
+  end
+
+  defp find_key_by_value(map, value) do
+    Enum.find_value(map, fn {k, v} -> if v == value, do: k end)
+  end
+
   def decimals_from_coin(coin) do
     case get(:decimal_map) do
       nil -> nil
@@ -695,7 +719,7 @@ defmodule Hyperliquid.Cache do
       nil -> mids
       existing -> Map.merge(existing, mids)
     end
-    cache_put(:all_mids, merged_mids, expire: Config.cache_mids_ttl())
+    cache_put(:all_mids, merged_mids)
   end
 
   @doc """
@@ -710,7 +734,7 @@ defmodule Hyperliquid.Cache do
       nil -> %{coin => price}
       existing -> Map.put(existing, coin, price)
     end
-    cache_put(:all_mids, updated_mids, expire: Config.cache_mids_ttl())
+    cache_put(:all_mids, updated_mids)
   end
 
   # ===================== WebSocket Subscription =====================
@@ -1031,7 +1055,7 @@ defmodule Hyperliquid.Cache do
   end
 
   @doc """
-  Put a key-value pair into the cache with default TTL.
+  Put a key-value pair into the cache.
   """
   def put(key, value) do
     cache_put(key, value)
