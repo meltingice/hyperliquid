@@ -86,6 +86,7 @@ defmodule Hyperliquid.Cache do
       # => {:ok, :partial, [:mids]}
   """
   def init_with_partial_success do
+    cache_init_start = System.monotonic_time()
     debug("Cache.init_with_partial_success starting...")
 
     # Fetch all 4 data sources
@@ -124,19 +125,40 @@ defmodule Hyperliquid.Cache do
     end
 
     # Return appropriate result based on success/failure counts
-    case {length(successes), length(failures)} do
-      {4, 0} ->
-        debug("Cache.init_with_partial_success completed successfully")
-        :ok
+    result =
+      case {length(successes), length(failures)} do
+        {4, 0} ->
+          debug("Cache.init_with_partial_success completed successfully")
+          :ok
 
-      {n, _} when n > 0 ->
-        debug("Cache.init_with_partial_success completed with partial failures", %{failed_keys: failed_keys})
-        {:ok, :partial, failed_keys}
+        {n, _} when n > 0 ->
+          debug("Cache.init_with_partial_success completed with partial failures", %{failed_keys: failed_keys})
+          {:ok, :partial, failed_keys}
 
-      {0, _} ->
-        debug("Cache.init_with_partial_success failed - all fetches failed")
-        {:error, :all_failed}
+        {0, _} ->
+          debug("Cache.init_with_partial_success failed - all fetches failed")
+          {:error, :all_failed}
+      end
+
+    duration = System.monotonic_time() - cache_init_start
+
+    case result do
+      {:error, reason} ->
+        :telemetry.execute(
+          [:hyperliquid, :cache, :init, :exception],
+          %{duration: duration},
+          %{reason: reason}
+        )
+
+      _ ->
+        :telemetry.execute(
+          [:hyperliquid, :cache, :init, :stop],
+          %{duration: duration},
+          %{}
+        )
     end
+
+    result
   end
 
   # Store successful fetches into cache

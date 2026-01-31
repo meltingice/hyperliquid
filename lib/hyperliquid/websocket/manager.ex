@@ -272,6 +272,12 @@ defmodule Hyperliquid.WebSocket.Manager do
 
             new_state = %{state | subscriptions: subscriptions, counter: state.counter + 1}
 
+            :telemetry.execute(
+              [:hyperliquid, :ws, :subscribe],
+              %{count: 1},
+              %{module: module, key: subscription_key}
+            )
+
             Logger.info(
               "Subscribed #{inspect(module)} with key #{subscription_key}, id: #{sub_id}"
             )
@@ -304,6 +310,12 @@ defmodule Hyperliquid.WebSocket.Manager do
 
         # Check if connection should be closed (no more subscriptions)
         state = maybe_close_connection(subscription.key, subscriptions, state)
+
+        :telemetry.execute(
+          [:hyperliquid, :ws, :unsubscribe],
+          %{count: 1},
+          %{subscription_id: subscription_id}
+        )
 
         Logger.info("Unsubscribed #{subscription_id}")
         {:reply, :ok, %{state | subscriptions: subscriptions}}

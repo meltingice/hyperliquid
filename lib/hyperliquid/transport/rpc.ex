@@ -233,6 +233,29 @@ defmodule Hyperliquid.Transport.Rpc do
     resolve_rpc_url(opts)
   end
 
+  # ===================== Bang Methods =====================
+
+  @doc "Make a JSON-RPC call. Raises on error."
+  @spec call!(String.t(), list(), rpc_opts()) :: any()
+  def call!(method, params \\ [], opts \\ []), do: unwrap!(call(method, params, opts))
+
+  @doc "Make a batch of JSON-RPC calls. Raises on error."
+  @spec batch!([{String.t(), list()}], rpc_opts()) :: [any()]
+  def batch!(requests, opts \\ []), do: unwrap!(batch(requests, opts))
+
+  @doc "Subscribe to events via WebSocket. Raises on error."
+  @spec subscribe!(String.t(), list(), rpc_opts()) :: any()
+  def subscribe!(subscription_type, params \\ [], opts \\ []),
+    do: unwrap!(subscribe(subscription_type, params, opts))
+
+  @doc "Unsubscribe from events. Raises on error."
+  @spec unsubscribe!(String.t(), rpc_opts()) :: any()
+  def unsubscribe!(subscription_id, opts \\ []), do: unwrap!(unsubscribe(subscription_id, opts))
+
+  @doc "Check if the RPC endpoint is reachable. Raises on error."
+  @spec ping!(rpc_opts()) :: boolean()
+  def ping!(opts \\ []), do: unwrap!(ping(opts))
+
   # ===================== Private Helpers =====================
 
   # Resolves the RPC URL with the following priority:
@@ -265,21 +288,57 @@ defmodule Hyperliquid.Transport.Rpc do
     json_body = Jason.encode!(payload)
     headers = [{"Content-Type", @json_content_type}]
 
+    method =
+      case payload do
+        %{method: m} -> m
+        [%{method: m} | _] -> "batch(#{m}...)"
+        _ -> "unknown"
+      end
+
+    start_time = System.monotonic_time()
+
+    :telemetry.execute(
+      [:hyperliquid, :rpc, :request, :start],
+      %{system_time: System.system_time()},
+      %{method: method}
+    )
+
     http_opts = [
       timeout: Keyword.get(opts, :timeout, @default_timeout),
       recv_timeout: Keyword.get(opts, :recv_timeout, @default_recv_timeout)
     ]
 
-    case HTTPoison.post(url, json_body, headers, http_opts) do
-      {:ok, %HTTPoison.Response{status_code: code, body: resp_body}} when code in 200..299 ->
-        parse_response(resp_body)
+    result =
+      case HTTPoison.post(url, json_body, headers, http_opts) do
+        {:ok, %HTTPoison.Response{status_code: code, body: resp_body}} when code in 200..299 ->
+          parse_response(resp_body)
 
-      {:ok, %HTTPoison.Response{status_code: code, body: resp_body}} ->
-        {:error, Error.exception(%{status_code: code, message: resp_body})}
+        {:ok, %HTTPoison.Response{status_code: code, body: resp_body}} ->
+          {:error, Error.exception(%{status_code: code, message: resp_body})}
 
-      {:error, %HTTPoison.Error{reason: reason}} ->
-        {:error, Error.exception(%{reason: reason})}
+        {:error, %HTTPoison.Error{reason: reason}} ->
+          {:error, Error.exception(%{reason: reason})}
+      end
+
+    duration = System.monotonic_time() - start_time
+
+    case result do
+      {:ok, _} ->
+        :telemetry.execute(
+          [:hyperliquid, :rpc, :request, :stop],
+          %{duration: duration},
+          %{method: method}
+        )
+
+      {:error, reason} ->
+        :telemetry.execute(
+          [:hyperliquid, :rpc, :request, :exception],
+          %{duration: duration},
+          %{method: method, reason: reason}
+        )
     end
+
+    result
   end
 
   defp parse_response(body) when is_binary(body) do
@@ -295,4 +354,8 @@ defmodule Hyperliquid.Transport.Rpc do
   defp generate_request_id do
     :erlang.unique_integer([:positive, :monotonic])
   end
+
+  defp unwrap!({:ok, result}), do: result
+  defp unwrap!({:error, %Error{} = error}), do: raise(error)
+  defp unwrap!({:error, reason}), do: raise(Error.exception(%{reason: reason}))
 end

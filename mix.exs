@@ -42,6 +42,7 @@ defmodule Hyperliquid.MixProject do
       {:httpoison, "~> 1.7"},
       {:jason, "~> 1.4"},
       {:cachex, "~> 4.1.1"},
+      {:telemetry, "~> 1.0"},
       {:gun, "~> 2.0"},
       {:mint_web_socket, "~> 1.0.5"},
 
@@ -56,7 +57,11 @@ defmodule Hyperliquid.MixProject do
       # Development and testing
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:bypass, "~> 2.1", only: :test}
+      {:bypass, "~> 2.1", only: :test},
+
+      # Livebook integration (dev only)
+      {:pythonx, "~> 0.4.2", only: :dev},
+      {:kino_pythonx, "~> 0.1.0", only: :dev}
     ]
   end
 

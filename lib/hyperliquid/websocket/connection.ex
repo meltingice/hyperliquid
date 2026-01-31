@@ -196,8 +196,24 @@ defmodule Hyperliquid.WebSocket.Connection do
 
   @impl true
   def handle_info(:connect, state) do
+    connect_start = System.monotonic_time()
+
+    :telemetry.execute(
+      [:hyperliquid, :ws, :connect, :start],
+      %{system_time: System.system_time()},
+      %{key: state.key}
+    )
+
     case connect(state.url) do
       {:ok, conn, stream_ref} ->
+        duration = System.monotonic_time() - connect_start
+
+        :telemetry.execute(
+          [:hyperliquid, :ws, :connect, :stop],
+          %{duration: duration},
+          %{key: state.key}
+        )
+
         Logger.info("WebSocket connected: #{state.key}")
 
         # Schedule heartbeat
@@ -216,6 +232,14 @@ defmodule Hyperliquid.WebSocket.Connection do
         {:noreply, state}
 
       {:error, reason} ->
+        duration = System.monotonic_time() - connect_start
+
+        :telemetry.execute(
+          [:hyperliquid, :ws, :connect, :exception],
+          %{duration: duration},
+          %{key: state.key, reason: reason}
+        )
+
         Logger.warning("WebSocket connection failed (#{state.key}): #{inspect(reason)}")
         schedule_reconnect(state)
     end
@@ -240,6 +264,12 @@ defmodule Hyperliquid.WebSocket.Connection do
 
   @impl true
   def handle_info({:gun_ws, _conn, _stream_ref, {:text, data}}, state) do
+    :telemetry.execute(
+      [:hyperliquid, :ws, :message, :received],
+      %{count: 1},
+      %{key: state.key}
+    )
+
     case Jason.decode(data) do
       {:ok, message} ->
         handle_ws_message(message, state)
@@ -437,6 +467,12 @@ defmodule Hyperliquid.WebSocket.Connection do
   end
 
   defp handle_disconnect(state) do
+    :telemetry.execute(
+      [:hyperliquid, :ws, :disconnect],
+      %{},
+      %{key: state.key}
+    )
+
     # Cancel heartbeat
     if state.heartbeat_ref do
       Process.cancel_timer(state.heartbeat_ref)

@@ -12,7 +12,7 @@ Hyperliquid provides a comprehensive, type-safe interface to the Hyperliquid DEX
 ## Features
 
 - **DSL-based endpoint definitions** - Clean, declarative API with automatic function generation
-- **125+ typed endpoints** - 61 Info endpoints, 38 Exchange endpoints, 26 WebSocket subscriptions
+- **125+ typed endpoints** - 62 Info endpoints, 38 Exchange endpoints, 26 WebSocket subscriptions
 - **Ecto schema validation** - Built-in response validation and type safety
 - **WebSocket connection pooling** - Efficient connection management with automatic reconnection
 - **Cachex-based caching** - Fast in-memory asset metadata and mid price lookups
@@ -147,28 +147,50 @@ alias Hyperliquid.Api.Info.UserFills
 
 ### Placing Orders
 
-Use Exchange API endpoints to trade:
+Use Exchange API endpoints to trade. The private key defaults to the one in your config,
+or you can pass it explicitly via the `:private_key` option:
 
 ```elixir
 alias Hyperliquid.Api.Exchange.{Order, Cancel}
 
-# Get your private key from config
-private_key = Application.get_env(:hyperliquid, :private_key)
-
-# Place a limit order (all-in-one)
-{:ok, result} = Order.place_limit(private_key, "BTC", true, "43000.0", "0.1")
+# Place a limit order (uses private_key from config)
+{:ok, result} = Order.place_limit("BTC", true, "43000.0", "0.1")
 # => %{status: "ok", response: %{data: %{statuses: [%{resting: %{oid: 12345}}]}}}
 
 # Place a market order
-{:ok, result} = Order.place_market(private_key, "ETH", false, "1.5")
+{:ok, result} = Order.place_market("ETH", false, "1.5")
 
 # Or build and place separately
 order = Order.limit_order("BTC", true, "43000.0", "0.1")
-{:ok, result} = Order.place(private_key, order)
+{:ok, result} = Order.place(order)
+
+# Override private key per-request
+{:ok, result} = Order.place_limit("BTC", true, "43000.0", "0.1", private_key: other_key)
 
 # Cancel an order by asset and order ID
-{:ok, cancel_result} = Cancel.cancel(private_key, 0, 12345)
+{:ok, cancel_result} = Cancel.cancel(0, 12345)
 # => %{status: "ok", response: %{data: %{statuses: ["success"]}}}
+```
+
+### Exchange Action Signing
+
+Hyperliquid exchange actions use two different signing schemes:
+
+- **Agent-key compatible** — Orders, cancels, leverage updates, and other trading actions use EIP-712 exchange domain signing. These can be signed with an **agent key** (approved via `ApproveAgent`) instead of your main private key. This is the recommended setup for trading bots.
+
+- **L1-signed actions** — Transfers (`UsdClassTransfer`, `SubAccountTransfer`), withdrawals, vault operations, sub-account creation, and other account-level actions require your **actual private key**. These cannot be delegated to an agent key.
+
+```elixir
+# Agent-key compatible (trading actions)
+# Configure your agent key in config and trade without exposing your main key
+config :hyperliquid, private_key: "YOUR_AGENT_KEY"
+
+Order.place_limit("BTC", true, "43000.0", "0.1")
+Cancel.cancel(0, 12345)
+
+# L1-signed actions (require main private key)
+alias Hyperliquid.Api.Exchange.UsdClassTransfer
+UsdClassTransfer.request(%{...}, private_key: "YOUR_MAIN_PRIVATE_KEY")
 ```
 
 ### WebSocket Subscriptions
@@ -256,7 +278,7 @@ The Info API provides read-only market and account information. All endpoints ar
 - `Delegations` - User delegations
 - `DelegatorRewards` - Delegation rewards
 
-See the [HexDocs](https://hexdocs.pm/hyperliquid) for the complete list of 61 Info endpoints.
+See the [HexDocs](https://hexdocs.pm/hyperliquid) for the complete list of 62 Info endpoints.
 
 ### Exchange API (Trading Operations)
 
@@ -536,6 +558,57 @@ config: [
     private_key: "YOUR_TESTNET_KEY"
   ]
 ])
+```
+
+## Explorer API
+
+Query the Hyperliquid explorer for block and transaction details:
+
+```elixir
+alias Hyperliquid.Api.Explorer.{BlockDetails, TxDetails, UserDetails}
+
+{:ok, block} = BlockDetails.request(block_height)
+{:ok, tx} = TxDetails.request(tx_hash)
+{:ok, user} = UserDetails.request("0x1234...")
+```
+
+## RPC Transport
+
+Make JSON-RPC calls to the Hyperliquid EVM:
+
+```elixir
+alias Hyperliquid.Transport.Rpc
+
+{:ok, block_number} = Rpc.call("eth_blockNumber", [])
+{:ok, [block, chain]} = Rpc.batch([{"eth_blockNumber", []}, {"eth_chainId", []}])
+```
+
+## Telemetry
+
+Hyperliquid emits `:telemetry` events for API requests, WebSocket connections, cache operations, RPC calls, and storage flushes. See `Hyperliquid.Telemetry` for the full event reference.
+
+### Quick Debug Setup
+
+```elixir
+Hyperliquid.Telemetry.attach_default_logger()
+```
+
+### Telemetry.Metrics Example
+
+```elixir
+defmodule MyApp.Telemetry do
+  import Telemetry.Metrics
+
+  def metrics do
+    [
+      summary("hyperliquid.api.request.stop.duration", unit: {:native, :millisecond}),
+      summary("hyperliquid.api.exchange.stop.duration", unit: {:native, :millisecond}),
+      counter("hyperliquid.ws.message.received.count"),
+      summary("hyperliquid.rpc.request.stop.duration", unit: {:native, :millisecond}),
+      last_value("hyperliquid.storage.flush.stop.record_count")
+    ]
+  end
+end
 ```
 
 ## Development

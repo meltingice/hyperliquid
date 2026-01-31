@@ -158,6 +158,9 @@ defmodule Hyperliquid.Storage.Writer do
   end
 
   defp do_flush(buffer) do
+    start_time = System.monotonic_time()
+    record_count = length(buffer)
+
     # Group by module for efficient batch operations
     buffer
     |> Enum.reverse()
@@ -165,6 +168,14 @@ defmodule Hyperliquid.Storage.Writer do
     |> Enum.each(fn {module, events} ->
       write_batch(module, events)
     end)
+
+    duration = System.monotonic_time() - start_time
+
+    :telemetry.execute(
+      [:hyperliquid, :storage, :flush, :stop],
+      %{record_count: record_count, duration: duration},
+      %{}
+    )
   end
 
   defp write_batch(module, events) do
