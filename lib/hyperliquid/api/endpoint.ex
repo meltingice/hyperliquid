@@ -1056,14 +1056,7 @@ defmodule Hyperliquid.Api.Endpoint do
         end
       end
 
-      @doc """
-      Extract records for postgres insertion.
-      If `extract` is configured, pulls records from that field.
-      Context fields (from context_params) are merged into each extracted record.
-
-      Note: This function extracts from the PRIMARY table config for legacy compatibility.
-      For multi-table storage, use Storage.Writer which handles all tables.
-      """
+      @doc false
       def extract_records(data) do
         extract_field = unquote(primary_extract)
         context_fields = unquote(context_params)
@@ -1092,8 +1085,9 @@ defmodule Hyperliquid.Api.Endpoint do
         end
       end
 
-      @doc "Extract only configured fields (returns all if not configured)."
+      @doc false
       def extract_postgres_fields(data), do: data
+      @doc false
       def extract_cache_fields(data), do: data
     end
   end

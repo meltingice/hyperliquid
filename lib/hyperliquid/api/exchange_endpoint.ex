@@ -124,6 +124,18 @@ defmodule Hyperliquid.Api.ExchangeEndpoint do
           execute_l1_action(private_key, action, opts)
         end
 
+        @doc """
+        Execute the exchange action (bang variant).
+
+        Same as `request/2` but raises on error.
+        """
+        def request!(param, opts \\ []) do
+          case request(param, opts) do
+            {:ok, result} -> result
+            {:error, reason} -> raise "Exchange request failed: #{inspect(reason)}"
+          end
+        end
+
         defp execute_l1_action(private_key, action, opts) do
           vault_address = Keyword.get(opts, :vault_address)
           nonce = System.system_time(:millisecond)
@@ -232,6 +244,18 @@ defmodule Hyperliquid.Api.ExchangeEndpoint do
           private_key = Hyperliquid.Api.Exchange.KeyUtils.resolve_private_key!(opts)
           action = %{type: unquote(action_type)}
           execute_l1_action(private_key, action, opts)
+        end
+
+        @doc """
+        Execute the exchange action (bang variant).
+
+        Same as `request/1` but raises on error.
+        """
+        def request!(opts \\ []) do
+          case request(opts) do
+            {:ok, result} -> result
+            {:error, reason} -> raise "Exchange request failed: #{inspect(reason)}"
+          end
         end
 
         defp execute_l1_action(private_key, action, opts) do

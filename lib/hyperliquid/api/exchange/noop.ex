@@ -14,7 +14,7 @@ defmodule Hyperliquid.Api.Exchange.Noop do
     signing: :l1,
     doc: "Send a no-op heartbeat to keep connection alive",
     returns: "Success/error response from exchange",
-    params: [:private_key],
-    optional_params: [:vault_address],
+    params: [],
+    optional_params: [:private_key, :vault_address],
     rate_limit_cost: 1
 end

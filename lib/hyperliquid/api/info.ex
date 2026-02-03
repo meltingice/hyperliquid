@@ -32,8 +32,6 @@ defmodule Hyperliquid.Api.Info do
   See `Hyperliquid.Api.Registry.list_by_type(:info)` for all available endpoints.
   """
 
-  alias Hyperliquid.Api.Registry
-
   # Generate delegated functions for all Info endpoints at compile time
   require Hyperliquid.Api.DelegationHelper
   Hyperliquid.Api.DelegationHelper.generate_delegated_functions(:info)

@@ -1,6 +1,9 @@
 defmodule Hyperliquid.Storage.WriterTest do
   use ExUnit.Case, async: false
 
+  # Skip all tests in this module if database is not enabled
+  @moduletag :requires_database
+
   import Ecto.Query
   alias Hyperliquid.Storage.Writer
   alias Hyperliquid.Repo
@@ -143,13 +146,22 @@ defmodule Hyperliquid.Storage.WriterTest do
     test "DEBUG: database connection works" do
       # Direct insert to verify database works
       now = DateTime.utc_now()
-      {count, _} = Repo.insert_all("writer_test_single", [
-        %{record_id: 999, value: "direct_insert", inserted_at: now, updated_at: now}
-      ])
+
+      {count, _} =
+        Repo.insert_all("writer_test_single", [
+          %{record_id: 999, value: "direct_insert", inserted_at: now, updated_at: now}
+        ])
 
       assert count == 1
 
-      records = Repo.all(from r in "writer_test_single", where: r.record_id == 999, select: %{record_id: r.record_id})
+      records =
+        Repo.all(
+          from(r in "writer_test_single",
+            where: r.record_id == 999,
+            select: %{record_id: r.record_id}
+          )
+        )
+
       assert length(records) == 1
     end
 
@@ -165,7 +177,11 @@ defmodule Hyperliquid.Storage.WriterTest do
       assert {:ok, :stored} = Writer.store_sync(SingleTableMock, event_data)
 
       # Verify records in database
-      records = Repo.all(from r in "writer_test_single", select: %{record_id: r.record_id, value: r.value})
+      records =
+        Repo.all(
+          from(r in "writer_test_single", select: %{record_id: r.record_id, value: r.value})
+        )
+
       assert length(records) == 2
       assert Enum.find(records, &(&1.record_id == 1)).value == "test1"
       assert Enum.find(records, &(&1.record_id == 2)).value == "test2"
@@ -177,7 +193,11 @@ defmodule Hyperliquid.Storage.WriterTest do
       assert {:ok, :stored} = Writer.store_sync(SingleTableMock, event_data)
 
       # Verify initial value
-      [record] = Repo.all(from r in "writer_test_single", select: %{record_id: r.record_id, value: r.value})
+      [record] =
+        Repo.all(
+          from(r in "writer_test_single", select: %{record_id: r.record_id, value: r.value})
+        )
+
       assert record.value == "initial"
 
       # Update via upsert
@@ -185,7 +205,11 @@ defmodule Hyperliquid.Storage.WriterTest do
       assert {:ok, :stored} = Writer.store_sync(SingleTableMock, event_data)
 
       # Verify updated value
-      [record] = Repo.all(from r in "writer_test_single", select: %{record_id: r.record_id, value: r.value})
+      [record] =
+        Repo.all(
+          from(r in "writer_test_single", select: %{record_id: r.record_id, value: r.value})
+        )
+
       assert record.value == "updated"
     end
 
@@ -193,10 +217,15 @@ defmodule Hyperliquid.Storage.WriterTest do
       event_data = %{records: [%{record_id: 1, value: "test"}]}
       assert {:ok, :stored} = Writer.store_sync(SingleTableMock, event_data)
 
-      [record] = Repo.all(from r in "writer_test_single", select: %{
-        inserted_at: r.inserted_at,
-        updated_at: r.updated_at
-      })
+      [record] =
+        Repo.all(
+          from(r in "writer_test_single",
+            select: %{
+              inserted_at: r.inserted_at,
+              updated_at: r.updated_at
+            }
+          )
+        )
 
       # Postgres returns NaiveDateTime, not DateTime
       assert %NaiveDateTime{} = record.inserted_at
@@ -215,7 +244,7 @@ defmodule Hyperliquid.Storage.WriterTest do
 
       assert {:ok, :stored} = Writer.store_sync(SingleTableMock, event_data)
 
-      records = Repo.all(from r in "writer_test_single", select: %{record_id: r.record_id})
+      records = Repo.all(from(r in "writer_test_single", select: %{record_id: r.record_id}))
       assert length(records) == 2
     end
   end
@@ -236,12 +265,18 @@ defmodule Hyperliquid.Storage.WriterTest do
       assert {:ok, :stored} = Writer.store_sync(MultiTableMock, event_data)
 
       # Verify primary table
-      primary_records = Repo.all(from r in "writer_test_primary", select: %{record_id: r.record_id, name: r.name})
+      primary_records =
+        Repo.all(
+          from(r in "writer_test_primary", select: %{record_id: r.record_id, name: r.name})
+        )
+
       assert length(primary_records) == 2
       assert Enum.find(primary_records, &(&1.record_id == 1)).name == "primary1"
 
       # Verify secondary table
-      secondary_records = Repo.all(from r in "writer_test_secondary", select: %{key: r.key, value: r.value})
+      secondary_records =
+        Repo.all(from(r in "writer_test_secondary", select: %{key: r.key, value: r.value}))
+
       assert length(secondary_records) == 2
       assert Enum.find(secondary_records, &(&1.key == "sec1")).value == "value1"
     end
@@ -262,10 +297,13 @@ defmodule Hyperliquid.Storage.WriterTest do
       assert {:ok, :stored} = Writer.store_sync(MultiTableMock, event_data)
 
       # Verify transform converted struct to map for JSONB
-      [record] = Repo.all(from r in "writer_test_secondary",
-        where: r.key == "transformed",
-        select: %{nested_struct: r.nested_struct}
-      )
+      [record] =
+        Repo.all(
+          from(r in "writer_test_secondary",
+            where: r.key == "transformed",
+            select: %{nested_struct: r.nested_struct}
+          )
+        )
 
       assert is_map(record.nested_struct)
       assert record.nested_struct["field1"] == "data"
@@ -276,7 +314,8 @@ defmodule Hyperliquid.Storage.WriterTest do
     test "handles empty arrays for some tables" do
       event_data = %{
         primary: [%{record_id: 1, name: "only_primary"}],
-        secondary: []  # Empty array
+        # Empty array
+        secondary: []
       }
 
       assert {:ok, :stored} = Writer.store_sync(MultiTableMock, event_data)
@@ -309,6 +348,7 @@ defmodule Hyperliquid.Storage.WriterTest do
         primary: [%{record_id: 1, name: "initial_name"}],
         secondary: [%{key: "key1", value: "initial_value", nested_struct: nil}]
       }
+
       assert {:ok, :stored} = Writer.store_sync(MultiTableMock, event_data)
 
       # Update both tables
@@ -316,13 +356,14 @@ defmodule Hyperliquid.Storage.WriterTest do
         primary: [%{record_id: 1, name: "updated_name"}],
         secondary: [%{key: "key1", value: "updated_value", nested_struct: nil}]
       }
+
       assert {:ok, :stored} = Writer.store_sync(MultiTableMock, event_data)
 
       # Verify both were updated
-      [primary] = Repo.all(from r in "writer_test_primary", select: %{name: r.name})
+      [primary] = Repo.all(from(r in "writer_test_primary", select: %{name: r.name}))
       assert primary.name == "updated_name"
 
-      [secondary] = Repo.all(from r in "writer_test_secondary", select: %{value: r.value})
+      [secondary] = Repo.all(from(r in "writer_test_secondary", select: %{value: r.value}))
       assert secondary.value == "updated_value"
     end
   end
@@ -376,7 +417,14 @@ defmodule Hyperliquid.Storage.WriterTest do
       Writer.flush()
 
       # Verify record was written
-      records = Repo.all(from r in "writer_test_single", where: r.record_id == 99, select: %{record_id: r.record_id})
+      records =
+        Repo.all(
+          from(r in "writer_test_single",
+            where: r.record_id == 99,
+            select: %{record_id: r.record_id}
+          )
+        )
+
       assert length(records) == 1
     end
   end
@@ -388,7 +436,14 @@ defmodule Hyperliquid.Storage.WriterTest do
 
       assert {:ok, :stored} = Writer.store_sync(SingleTableMock, event_data)
 
-      records = Repo.all(from r in "writer_test_single", where: r.record_id == 100, select: %{record_id: r.record_id})
+      records =
+        Repo.all(
+          from(r in "writer_test_single",
+            where: r.record_id == 100,
+            select: %{record_id: r.record_id}
+          )
+        )
+
       assert length(records) == 1
     end
 

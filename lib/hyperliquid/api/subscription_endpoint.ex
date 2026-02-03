@@ -203,13 +203,7 @@ defmodule Hyperliquid.Api.SubscriptionEndpoint do
           end
         end
 
-        @doc """
-        Extract records from an event for postgres storage.
-
-        If an `extract` field is configured, returns the nested records with
-        context fields from the parent event merged in (e.g., user address).
-        Otherwise returns the event wrapped in a list.
-        """
+        @doc false
         def extract_records(event) do
           extract_field = unquote(primary_extract)
 
@@ -260,21 +254,13 @@ defmodule Hyperliquid.Api.SubscriptionEndpoint do
         """
         def cache_fields, do: unquote(cache_fields)
 
-        @doc """
-        Extract only the configured fields from an event for postgres storage.
-
-        If no fields are configured, returns the full event.
-        """
+        @doc false
         def extract_postgres_fields(event) do
           fields = unquote(postgres_fields)
           Hyperliquid.Api.SubscriptionEndpoint.extract_fields(event, fields)
         end
 
-        @doc """
-        Extract only the configured fields from an event for cache storage.
-
-        If no fields are configured, returns the full event.
-        """
+        @doc false
         def extract_cache_fields(event) do
           fields = unquote(cache_fields)
           Hyperliquid.Api.SubscriptionEndpoint.extract_fields(event, fields)

@@ -132,7 +132,10 @@ defmodule Hyperliquid.Cache do
           :ok
 
         {n, _} when n > 0 ->
-          debug("Cache.init_with_partial_success completed with partial failures", %{failed_keys: failed_keys})
+          debug("Cache.init_with_partial_success completed with partial failures", %{
+            failed_keys: failed_keys
+          })
+
           {:ok, :partial, failed_keys}
 
         {0, _} ->
@@ -170,7 +173,8 @@ defmodule Hyperliquid.Cache do
     perp_dexs_data = Map.get(success_map, :perp_dexs)
 
     # Process meta if available
-    {perp_asset_map, perp_decimal_map, base_meta, ctxs, dex_offsets, perp_meta_by_dex, margin_tables} =
+    {perp_asset_map, perp_decimal_map, base_meta, ctxs, dex_offsets, perp_meta_by_dex,
+     margin_tables} =
       if meta_data && perp_dexs_data do
         [base_meta, ctxs] = meta_data
 
@@ -205,6 +209,7 @@ defmodule Hyperliquid.Cache do
                   dex: dex,
                   universe_count: length(Map.get(meta, "universe", []))
                 })
+
                 {dex, meta}
 
               {:error, _} ->
@@ -233,7 +238,8 @@ defmodule Hyperliquid.Cache do
         # Margin tables to map id => table
         margin_tables = margin_tables_to_map(base_meta)
 
-        {perp_asset_map, perp_decimal_map, base_meta, ctxs, dex_offsets, perp_meta_by_dex, margin_tables}
+        {perp_asset_map, perp_decimal_map, base_meta, ctxs, dex_offsets, perp_meta_by_dex,
+         margin_tables}
       else
         {%{}, %{}, nil, nil, nil, nil, nil}
       end
@@ -321,7 +327,9 @@ defmodule Hyperliquid.Cache do
   # Simple cache put without TTL - entries persist until manually updated or cleared
   defp cache_put(key, value) do
     case Cachex.put(@cache, key, value) do
-      {:ok, true} -> :ok
+      {:ok, true} ->
+        :ok
+
       {:error, reason} ->
         Logger.warning("[Cache] Failed to store #{inspect(key)}", error: inspect(reason))
         :error
@@ -622,15 +630,6 @@ defmodule Hyperliquid.Cache do
   end
 
   @doc """
-  Get the decimal precision for a coin.
-
-  ## Parameters
-    - `coin`: Coin symbol
-
-  ## Returns
-    - Size decimals as integer, or nil if not found
-  """
-  @doc """
   Get the coin symbol for an asset index (reverse lookup).
 
   ## Parameters
@@ -737,10 +736,12 @@ defmodule Hyperliquid.Cache do
       Hyperliquid.Cache.update_mids(%{"BTC" => "43250.5", "ETH" => "2250.0"})
   """
   def update_mids(mids) when is_map(mids) do
-    merged_mids = case get(:all_mids) do
-      nil -> mids
-      existing -> Map.merge(existing, mids)
-    end
+    merged_mids =
+      case get(:all_mids) do
+        nil -> mids
+        existing -> Map.merge(existing, mids)
+      end
+
     cache_put(:all_mids, merged_mids)
   end
 
@@ -752,10 +753,12 @@ defmodule Hyperliquid.Cache do
     - `price`: Price as string or number
   """
   def update_mid(coin, price) when is_binary(coin) do
-    updated_mids = case get(:all_mids) do
-      nil -> %{coin => price}
-      existing -> Map.put(existing, coin, price)
-    end
+    updated_mids =
+      case get(:all_mids) do
+        nil -> %{coin => price}
+        existing -> Map.put(existing, coin, price)
+      end
+
     cache_put(:all_mids, updated_mids)
   end
 

@@ -27,8 +27,6 @@ defmodule Hyperliquid.Api.Exchange do
   See `Hyperliquid.Api.Registry.list_by_type(:exchange)` for available endpoints.
   """
 
-  alias Hyperliquid.Api.Registry
-
   # Generate delegated functions for all Exchange endpoints at compile time
   # Currently the list is empty, but this will auto-populate as endpoints migrate to DSL
   require Hyperliquid.Api.DelegationHelper

@@ -14,8 +14,8 @@ defmodule Hyperliquid.Api.Exchange.SetDisplayName do
     signing: :l1,
     doc: "Set display name for user account",
     returns: "Success/error response from exchange",
-    params: [:private_key, :display_name],
-    optional_params: [:vault_address],
+    params: [:display_name],
+    optional_params: [:private_key, :vault_address],
     rate_limit_cost: 1
 
   @doc false
