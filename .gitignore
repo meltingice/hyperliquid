@@ -34,3 +34,6 @@ config/prod.secret.exs
 
 # Prompts directory (for AI-assisted development)
 /prompts/
+
+# GSD planning directory (local only)
+.planning/

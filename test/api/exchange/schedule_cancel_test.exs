@@ -39,7 +39,10 @@ defmodule Hyperliquid.Api.Exchange.ScheduleCancelTest do
       schedule_time = System.system_time(:millisecond) + 3_600_000
 
       result =
-        ScheduleCancel.request(schedule_time, private_key: @private_key, vault_address: vault_address)
+        ScheduleCancel.request(schedule_time,
+          private_key: @private_key,
+          vault_address: vault_address
+        )
 
       # Should get response (either error tuple or ok with error status)
       case result do

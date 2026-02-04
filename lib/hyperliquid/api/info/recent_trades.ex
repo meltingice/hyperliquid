@@ -42,6 +42,7 @@ defmodule Hyperliquid.Api.Info.RecentTrades do
   @primary_key false
   embedded_schema do
     field(:coin, :string)
+
     embeds_many :trades, Trade, primary_key: false do
       @moduledoc "Individual trade."
 

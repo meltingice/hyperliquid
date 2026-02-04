@@ -194,7 +194,8 @@ defmodule Hyperliquid.Api.Info.ClearinghouseState do
 
     %{
       user: get_field_value(data, :user),
-      dex: "",  # Default empty string for dex
+      # Default empty string for dex
+      dex: "",
       margin_summary: Utils.to_camel_case_map(get_field_value(data, :margin_summary)),
       cross_margin_summary: Utils.to_camel_case_map(get_field_value(data, :cross_margin_summary)),
       withdrawable: get_field_value(data, :withdrawable),

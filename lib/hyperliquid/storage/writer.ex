@@ -272,7 +272,11 @@ defmodule Hyperliquid.Storage.Writer do
       case Enum.find(results, fn r -> match?({:error, _}, r) end) do
         nil ->
           total_count = Enum.sum(Enum.map(results, fn {:ok, count} -> count end))
-          Logger.info("[Storage.Writer] Wrote #{total_count} total records across #{length(table_configs)} tables")
+
+          Logger.info(
+            "[Storage.Writer] Wrote #{total_count} total records across #{length(table_configs)} tables"
+          )
+
           {:ok, total_count}
 
         error ->
@@ -320,7 +324,10 @@ defmodule Hyperliquid.Storage.Writer do
             transform_fn.(records)
           rescue
             error ->
-              Logger.error("[Storage.Writer] Transform failed for #{table}: #{Exception.message(error)}")
+              Logger.error(
+                "[Storage.Writer] Transform failed for #{table}: #{Exception.message(error)}"
+              )
+
               reraise error, __STACKTRACE__
           end
         else
@@ -363,7 +370,10 @@ defmodule Hyperliquid.Storage.Writer do
         {:ok, count}
       rescue
         error ->
-          Logger.error("[Storage.Writer] Postgres insert failed for #{table}: #{Exception.message(error)}")
+          Logger.error(
+            "[Storage.Writer] Postgres insert failed for #{table}: #{Exception.message(error)}"
+          )
+
           {:error, error}
       end
     end

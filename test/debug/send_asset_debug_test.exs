@@ -102,6 +102,7 @@ defmodule Hyperliquid.Debug.SendAssetDebugTest do
 
       # 421614 is a different chain ID and should NOT be used
       testnet_value = Utils.from_int(421_614)
+
       assert testnet_value != expected,
              "421614 != 42161 (different chain IDs)"
 
@@ -313,7 +314,10 @@ defmodule Hyperliquid.Debug.SendAssetDebugTest do
       }
 
       our_keys = Map.keys(our_payload) |> Enum.sort()
-      working_keys = ["action", "expiresAfter", "isFrontend", "nonce", "signature", "vaultAddress"] |> Enum.sort()
+
+      working_keys =
+        ["action", "expiresAfter", "isFrontend", "nonce", "signature", "vaultAddress"]
+        |> Enum.sort()
 
       IO.puts("\n  [H3] Our outer payload keys:     #{inspect(our_keys)}")
       IO.puts("  [H3] Working outer payload keys: #{inspect(working_keys)}")
@@ -355,15 +359,18 @@ defmodule Hyperliquid.Debug.SendAssetDebugTest do
     test "working payloads use all-lowercase addresses" do
       working_dest = @working_sub_to_master["action"]["destination"]
       IO.puts("\n  [H5] Working destination: #{working_dest}")
+
       assert working_dest == String.downcase(working_dest),
              "Working payload uses lowercase address"
 
       our_address = @address
       IO.puts("  [H5] Our address:         #{our_address}")
+
       assert our_address != String.downcase(our_address),
              "Our address is mixed-case (checksummed)"
 
       IO.puts("  [H5] Lowercased:          #{String.downcase(our_address)}")
+
       assert String.downcase(our_address) == working_dest,
              "Lowercased addresses should match"
     end
@@ -380,7 +387,9 @@ defmodule Hyperliquid.Debug.SendAssetDebugTest do
       #                    destinationDex, token, amount, fromSubAccount, nonce
 
       usd_send_fields = ~w(type signatureChainId hyperliquidChain destination amount time)
-      send_asset_fields = ~w(type signatureChainId hyperliquidChain destination sourceDex destinationDex token amount fromSubAccount nonce)
+
+      send_asset_fields =
+        ~w(type signatureChainId hyperliquidChain destination sourceDex destinationDex token amount fromSubAccount nonce)
 
       IO.puts("\n  [H6] UsdSend fields:   #{inspect(usd_send_fields)}")
       IO.puts("  [H6] SendAsset fields: #{inspect(send_asset_fields)}")
@@ -404,7 +413,11 @@ defmodule Hyperliquid.Debug.SendAssetDebugTest do
       # It should be using the signatureChainId from the action (42161).
 
       IO.puts("\n  [H6] Rust NIF chain() hardcodes chainId=421614 for ALL environments")
-      IO.puts("  [H6] This affects: sign_usd_send, sign_withdraw3, sign_spot_send, sign_approve_*")
+
+      IO.puts(
+        "  [H6] This affects: sign_usd_send, sign_withdraw3, sign_spot_send, sign_approve_*"
+      )
+
       IO.puts("  [H6] FIX: These NIFs should use chainId 42161 always")
 
       # We can verify by signing with sign_usd_send and comparing
@@ -617,7 +630,8 @@ defmodule Hyperliquid.Debug.SendAssetDebugTest do
              "FIXED signatureChainId should match"
 
       # Compare all action fields except signature-dependent ones
-      for key <- ~w(type signatureChainId hyperliquidChain destination sourceDex destinationDex token amount fromSubAccount nonce) do
+      for key <-
+            ~w(type signatureChainId hyperliquidChain destination sourceDex destinationDex token amount fromSubAccount nonce) do
         assert fixed_decoded["action"][key] == working["action"][key],
                "Action field '#{key}' mismatch: #{inspect(fixed_decoded["action"][key])} != #{inspect(working["action"][key])}"
       end

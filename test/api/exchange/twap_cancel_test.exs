@@ -23,7 +23,8 @@ defmodule Hyperliquid.Api.Exchange.TwapCancelTest do
     test "builds correct action structure with vault address" do
       vault_address = "0x1234567890123456789012345678901234567890"
 
-      result = TwapCancel.request(1, 67890, private_key: @private_key, vault_address: vault_address)
+      result =
+        TwapCancel.request(1, 67890, private_key: @private_key, vault_address: vault_address)
 
       # Should get response (either error tuple or ok with error status)
       case result do

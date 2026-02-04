@@ -83,12 +83,31 @@ defmodule Hyperliquid.Cache.Warmer do
       :ok ->
         Logger.info("[Cache.Warmer] Cache initialized successfully")
         mids_sub_id = subscribe_to_live_mids()
-        {:noreply, %{state | initialized: true, retry_count: 0, last_error: nil, mids_subscription: mids_sub_id}}
+
+        {:noreply,
+         %{
+           state
+           | initialized: true,
+             retry_count: 0,
+             last_error: nil,
+             mids_subscription: mids_sub_id
+         }}
 
       {:ok, :partial, failed_keys} ->
-        Logger.warning("[Cache.Warmer] Cache partially initialized, failed keys: #{inspect(failed_keys)}")
+        Logger.warning(
+          "[Cache.Warmer] Cache partially initialized, failed keys: #{inspect(failed_keys)}"
+        )
+
         mids_sub_id = subscribe_to_live_mids()
-        {:noreply, %{state | initialized: true, retry_count: 0, last_error: {:partial, failed_keys}, mids_subscription: mids_sub_id}}
+
+        {:noreply,
+         %{
+           state
+           | initialized: true,
+             retry_count: 0,
+             last_error: {:partial, failed_keys},
+             mids_subscription: mids_sub_id
+         }}
 
       {:error, reason} = error ->
         new_retry_count = state.retry_count + 1
@@ -104,7 +123,10 @@ defmodule Hyperliquid.Cache.Warmer do
           Process.send_after(self(), :retry, retry_delay)
           {:noreply, %{state | retry_count: new_retry_count, last_error: error}}
         else
-          Logger.error("[Cache.Warmer] Max retries (#{max_retries}) exceeded, running in degraded mode")
+          Logger.error(
+            "[Cache.Warmer] Max retries (#{max_retries}) exceeded, running in degraded mode"
+          )
+
           {:noreply, %{state | retry_count: new_retry_count, last_error: error}}
         end
     end

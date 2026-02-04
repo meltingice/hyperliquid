@@ -42,6 +42,7 @@ defmodule Hyperliquid.Api.Info.CandleSnapshot do
   embedded_schema do
     field(:coin, :string)
     field(:interval, :string)
+
     embeds_many :candles, Candle, primary_key: false do
       @moduledoc "Single candle data point."
 

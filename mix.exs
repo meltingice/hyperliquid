@@ -27,7 +27,8 @@ defmodule Hyperliquid.MixProject do
 
   defp package do
     [
-      description: "Elixir SDK for Hyperliquid DEX with DSL-based API endpoints, WebSocket subscriptions, and optional Postgres/Phoenix integration",
+      description:
+        "Elixir SDK for Hyperliquid DEX with DSL-based API endpoints, WebSocket subscriptions, and optional Postgres/Phoenix integration",
       maintainers: ["Steven Kedzior"],
       licenses: ["MIT"],
       links: %{"GitHub" => @source_url}

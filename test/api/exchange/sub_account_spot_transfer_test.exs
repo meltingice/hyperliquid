@@ -16,7 +16,9 @@ defmodule Hyperliquid.Api.Exchange.SubAccountSpotTransferTest do
       # Call the request function - we expect it to fail at the API level,
       # but we can inspect the action structure that was built
       result =
-        SubAccountSpotTransfer.request(sub_account_user, is_deposit, token, amount, private_key: @private_key)
+        SubAccountSpotTransfer.request(sub_account_user, is_deposit, token, amount,
+          private_key: @private_key
+        )
 
       # Should get response (either error tuple or ok with error status)
       case result do
@@ -33,7 +35,9 @@ defmodule Hyperliquid.Api.Exchange.SubAccountSpotTransferTest do
       amount = "50.5"
 
       result =
-        SubAccountSpotTransfer.request(sub_account_user, is_deposit, token, amount, private_key: @private_key)
+        SubAccountSpotTransfer.request(sub_account_user, is_deposit, token, amount,
+          private_key: @private_key
+        )
 
       # Should get response (either error tuple or ok with error status)
       case result do

@@ -81,8 +81,9 @@ defmodule Hyperliquid.Api.Info.OrderStatus do
     order = safe_get(data, :order) || safe_get(data, "order") || %{}
 
     # Prefer inner order_status (open, filled, etc) over outer status ("order")
-    status = safe_get(order, :order_status) || safe_get(order, "order_status") ||
-             safe_get(data, :status) || safe_get(data, "status")
+    status =
+      safe_get(order, :order_status) || safe_get(order, "order_status") ||
+        safe_get(data, :status) || safe_get(data, "status")
 
     %{
       # Context field from request params (merged by extract_records)
@@ -90,11 +91,13 @@ defmodule Hyperliquid.Api.Info.OrderStatus do
       status: status,
       coin: safe_get(order, :coin) || safe_get(order, "coin"),
       side: safe_get(order, :side) || safe_get(order, "side"),
-      limit_px: safe_get(order, :limit_px) || safe_get(order, "limitPx") || safe_get(order, "limit_px"),
+      limit_px:
+        safe_get(order, :limit_px) || safe_get(order, "limitPx") || safe_get(order, "limit_px"),
       sz: safe_get(order, :sz) || safe_get(order, "sz"),
       oid: safe_get(order, :oid) || safe_get(order, "oid"),
       timestamp: safe_get(order, :timestamp) || safe_get(order, "timestamp"),
-      orig_sz: safe_get(order, :orig_sz) || safe_get(order, "origSz") || safe_get(order, "orig_sz"),
+      orig_sz:
+        safe_get(order, :orig_sz) || safe_get(order, "origSz") || safe_get(order, "orig_sz"),
       cloid: safe_get(order, :cloid) || safe_get(order, "cloid")
     }
   end
@@ -156,7 +159,17 @@ defmodule Hyperliquid.Api.Info.OrderStatus do
     normalized = normalize_order_attrs(attrs)
 
     order
-    |> cast(normalized, [:coin, :side, :limit_px, :sz, :oid, :timestamp, :orig_sz, :cloid, :order_status])
+    |> cast(normalized, [
+      :coin,
+      :side,
+      :limit_px,
+      :sz,
+      :oid,
+      :timestamp,
+      :orig_sz,
+      :cloid,
+      :order_status
+    ])
   end
 
   defp normalize_order_attrs(attrs) when is_map(attrs) do

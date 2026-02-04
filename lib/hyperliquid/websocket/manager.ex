@@ -877,7 +877,10 @@ defmodule Hyperliquid.WebSocket.Manager do
         # Merge subscription params (e.g., user) into event data for context
         storage_data = merge_subscription_context(event_data, subscription_params)
         Hyperliquid.Storage.Writer.store_async(module, storage_data)
-        Logger.debug("[Manager] SAVED with context: #{inspect(Map.keys(subscription_params || %{}))}")
+
+        Logger.debug(
+          "[Manager] SAVED with context: #{inspect(Map.keys(subscription_params || %{}))}"
+        )
       end
     end
   rescue

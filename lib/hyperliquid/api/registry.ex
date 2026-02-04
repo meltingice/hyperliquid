@@ -307,13 +307,14 @@ defmodule Hyperliquid.Api.Registry do
   def resolve_endpoint(context, endpoint_name) when is_atom(context) and is_atom(endpoint_name) do
     module_name = snake_to_module_name(endpoint_name)
 
-    context_module = case context do
-      :info -> Hyperliquid.Api.Info
-      :exchange -> Hyperliquid.Api.Exchange
-      :explorer -> Hyperliquid.Api.Explorer
-      :stats -> Hyperliquid.Api.Stats
-      _ -> nil
-    end
+    context_module =
+      case context do
+        :info -> Hyperliquid.Api.Info
+        :exchange -> Hyperliquid.Api.Exchange
+        :explorer -> Hyperliquid.Api.Explorer
+        :stats -> Hyperliquid.Api.Stats
+        _ -> nil
+      end
 
     if context_module do
       full_module = Module.concat(context_module, module_name)

@@ -21,16 +21,20 @@ defmodule Hyperliquid.Application do
     core_children =
       [
         {Phoenix.PubSub, name: Hyperliquid.PubSub},
-        {Cachex, [
-          name: @cache,
-          hooks: [
-            hook(module: Cachex.Limit.Scheduled, args: {
-              Config.cache_max_entries(),
-              [reclaim: Config.cache_reclaim_fraction()],
-              [frequency: 10_000]
-            })
-          ]
-        ]}
+        {Cachex,
+         [
+           name: @cache,
+           hooks: [
+             hook(
+               module: Cachex.Limit.Scheduled,
+               args: {
+                 Config.cache_max_entries(),
+                 [reclaim: Config.cache_reclaim_fraction()],
+                 [frequency: 10_000]
+               }
+             )
+           ]
+         ]}
       ] ++
         if Config.autostart_cache?() do
           [Hyperliquid.Cache.Warmer]

@@ -130,7 +130,8 @@ defmodule Hyperliquid.Api do
   @spec command(context(), endpoint_name(), args()) :: {:ok, term()} | {:error, term()}
   def command(context, endpoint_name, args \\ [])
 
-  def command(context, endpoint_name, args) when is_atom(context) and is_atom(endpoint_name) and is_list(args) do
+  def command(context, endpoint_name, args)
+      when is_atom(context) and is_atom(endpoint_name) and is_list(args) do
     with {:ok, module} <- Registry.resolve_endpoint(context, endpoint_name) do
       invoke_endpoint(module, args)
     end
@@ -155,7 +156,8 @@ defmodule Hyperliquid.Api do
   @spec command!(context(), endpoint_name(), args()) :: term()
   def command!(context, endpoint_name, args \\ [])
 
-  def command!(context, endpoint_name, args) when is_atom(context) and is_atom(endpoint_name) and is_list(args) do
+  def command!(context, endpoint_name, args)
+      when is_atom(context) and is_atom(endpoint_name) and is_list(args) do
     case command(context, endpoint_name, args) do
       {:ok, result} ->
         result
