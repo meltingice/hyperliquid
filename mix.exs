@@ -2,7 +2,7 @@ defmodule Hyperliquid.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/skedzior/hyperliquid"
-  @version "0.2.0"
+  @version "0.2.1"
 
   def project do
     [
@@ -57,6 +57,7 @@ defmodule Hyperliquid.MixProject do
       {:telemetry, "~> 1.0"},
       {:gun, "~> 2.0"},
       {:mint_web_socket, "~> 1.0.5"},
+      {:ecto, "~> 3.10"},
 
       # Optional database dependencies (enable with config :hyperliquid, enable_db: true)
       {:phoenix_ecto, "~> 4.5", optional: true},
