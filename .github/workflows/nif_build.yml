@@ -52,4 +52,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            signer_nif-*
+            *signer_nif-*.tar.gz
