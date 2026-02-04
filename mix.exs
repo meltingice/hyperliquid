@@ -20,7 +20,7 @@ defmodule Hyperliquid.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger, :runtime_tools, :wx, :observer],
+      extra_applications: [:logger, :runtime_tools],
       mod: {Hyperliquid.Application, []}
     ]
   end
@@ -81,10 +81,18 @@ defmodule Hyperliquid.MixProject do
 
   defp aliases do
     [
-      setup: ["deps.get", "ecto.setup"],
+      setup: ["deps.get"] ++ if_ecto(["ecto.setup"]),
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
-      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"]
+      test: if_ecto(["ecto.create --quiet", "ecto.migrate --quiet"]) ++ ["test"]
     ]
+  end
+
+  defp if_ecto(tasks) do
+    if Code.ensure_loaded?(Ecto) do
+      tasks
+    else
+      []
+    end
   end
 end
