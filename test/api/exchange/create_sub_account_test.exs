@@ -1,29 +1,41 @@
 defmodule Hyperliquid.Api.Exchange.CreateSubAccountTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Hyperliquid.Api.Exchange.CreateSubAccount
 
   @private_key "0000000000000000000000000000000000000000000000000000000000000001"
 
+  setup do
+    bypass = Bypass.open()
+    Application.put_env(:hyperliquid, :http_url, "http://localhost:#{bypass.port}")
+
+    Bypass.stub(bypass, "POST", "/info", fn conn ->
+      Plug.Conn.put_resp_header(conn, "content-type", "application/json")
+      |> Plug.Conn.resp(200, Jason.encode!(%{}))
+    end)
+
+    {:ok, bypass: bypass}
+  end
+
   describe "request/3" do
-    test "builds correct action structure for basic sub-account creation" do
+    test "builds correct action structure for basic sub-account creation", %{bypass: bypass} do
       name = "Trading Bot"
 
-      # Call the request function - we expect it to fail at the API level,
-      # but we can inspect the action structure that was built
-      result = CreateSubAccount.request(name, private_key: @private_key)
+      Bypass.expect(bypass, "POST", "/exchange", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
+        assert payload["action"]["type"] == "createSubAccount"
+        assert payload["action"]["name"] == "Trading Bot"
 
-      # Should get response (either error tuple or ok with error status)
-      # Both indicate action was built correctly
-      case result do
-        {:error, _} -> :ok
-        {:ok, %{"status" => "err"}} -> :ok
-        other -> flunk("Unexpected result: #{inspect(other)}")
-      end
+        Plug.Conn.put_resp_header(conn, "content-type", "application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{"status" => "ok", "response" => %{"type" => "default"}}))
+      end)
+
+      assert {:ok, %{"status" => "ok"}} =
+               CreateSubAccount.request(name, private_key: @private_key)
     end
 
     test "builds action with correct JSON field order" do
-      # Test that action fields are in correct order: type, name
       name = "Test Account"
 
       action =
@@ -59,7 +71,6 @@ defmodule Hyperliquid.Api.Exchange.CreateSubAccountTest do
     end
 
     test "validates field names are correct" do
-      # Ensure we're using 'type' and 'name', not other field names
       action =
         Jason.OrderedObject.new([
           {:type, "createSubAccount"},
@@ -75,7 +86,6 @@ defmodule Hyperliquid.Api.Exchange.CreateSubAccountTest do
     end
 
     test "field order is preserved in encoded JSON" do
-      # This test ensures that when we encode the action, the field order is exactly as specified
       name = "Ordered Test"
 
       action =
@@ -86,10 +96,7 @@ defmodule Hyperliquid.Api.Exchange.CreateSubAccountTest do
 
       action_json = Jason.encode!(action)
 
-      # The JSON string should start with {"type":"createSubAccount"
       assert String.starts_with?(action_json, ~s({"type":"createSubAccount"))
-
-      # And contain fields in order
       assert String.contains?(action_json, ~s("type":"createSubAccount"))
       assert String.contains?(action_json, ~s("name":"#{name}"))
     end

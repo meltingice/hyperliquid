@@ -1,47 +1,68 @@
 defmodule Hyperliquid.Api.Exchange.SubAccountTransferTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Hyperliquid.Api.Exchange.SubAccountTransfer
 
   @private_key "0000000000000000000000000000000000000000000000000000000000000001"
 
+  setup do
+    bypass = Bypass.open()
+    Application.put_env(:hyperliquid, :http_url, "http://localhost:#{bypass.port}")
+
+    Bypass.stub(bypass, "POST", "/info", fn conn ->
+      Plug.Conn.put_resp_header(conn, "content-type", "application/json")
+      |> Plug.Conn.resp(200, Jason.encode!(%{}))
+    end)
+
+    {:ok, bypass: bypass}
+  end
+
   describe "request/5" do
-    test "builds correct action structure for deposit to sub-account" do
+    test "builds correct action structure for deposit to sub-account", %{bypass: bypass} do
       sub_account_user = "0x1234567890123456789012345678901234567890"
       is_deposit = true
       usd = 1_000_000
 
-      # Call the request function - we expect it to fail at the API level,
-      # but we can inspect the action structure that was built
-      result =
-        SubAccountTransfer.request(sub_account_user, is_deposit, usd, private_key: @private_key)
+      Bypass.expect(bypass, "POST", "/exchange", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
+        assert payload["action"]["type"] == "subAccountTransfer"
+        assert payload["action"]["subAccountUser"] == sub_account_user
+        assert payload["action"]["isDeposit"] == true
+        assert payload["action"]["usd"] == usd
 
-      # Should get response (either error tuple or ok with error status)
-      case result do
-        {:error, _} -> :ok
-        {:ok, %{"status" => "err"}} -> :ok
-        other -> flunk("Unexpected result: #{inspect(other)}")
-      end
+        Plug.Conn.put_resp_header(conn, "content-type", "application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{"status" => "ok", "response" => %{"type" => "default"}}))
+      end)
+
+      assert {:ok, %{"status" => "ok"}} =
+               SubAccountTransfer.request(sub_account_user, is_deposit, usd,
+                 private_key: @private_key
+               )
     end
 
-    test "builds correct action structure for withdrawal from sub-account" do
+    test "builds correct action structure for withdrawal from sub-account", %{bypass: bypass} do
       sub_account_user = "0x1234567890123456789012345678901234567890"
       is_deposit = false
       usd = 500_000
 
-      result =
-        SubAccountTransfer.request(sub_account_user, is_deposit, usd, private_key: @private_key)
+      Bypass.expect(bypass, "POST", "/exchange", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
+        assert payload["action"]["type"] == "subAccountTransfer"
+        assert payload["action"]["isDeposit"] == false
 
-      # Should get response (either error tuple or ok with error status)
-      case result do
-        {:error, _} -> :ok
-        {:ok, %{"status" => "err"}} -> :ok
-        other -> flunk("Unexpected result: #{inspect(other)}")
-      end
+        Plug.Conn.put_resp_header(conn, "content-type", "application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{"status" => "ok", "response" => %{"type" => "default"}}))
+      end)
+
+      assert {:ok, %{"status" => "ok"}} =
+               SubAccountTransfer.request(sub_account_user, is_deposit, usd,
+                 private_key: @private_key
+               )
     end
 
     test "builds action with correct JSON field order" do
-      # Test that action fields are in correct order: type, subAccountUser, isDeposit, usd
       sub_account_user = "0x1234567890123456789012345678901234567890"
       is_deposit = true
       usd = 1_000_000
@@ -63,7 +84,6 @@ defmodule Hyperliquid.Api.Exchange.SubAccountTransferTest do
     end
 
     test "validates field names are correct" do
-      # Ensure we're using the correct field names
       action =
         Jason.OrderedObject.new([
           {:type, "subAccountTransfer"},
@@ -83,12 +103,10 @@ defmodule Hyperliquid.Api.Exchange.SubAccountTransferTest do
       refute Map.has_key?(action_map, "is_deposit")
       refute Map.has_key?(action_map, "amount")
 
-      # Verify correct values
       assert action_map["type"] == "subAccountTransfer"
     end
 
     test "field order is preserved in encoded JSON" do
-      # This test ensures that when we encode the action, the field order is exactly as specified
       sub_account_user = "0x1234567890123456789012345678901234567890"
       usd = 2_500_000
 
@@ -102,10 +120,7 @@ defmodule Hyperliquid.Api.Exchange.SubAccountTransferTest do
 
       action_json = Jason.encode!(action)
 
-      # The JSON string should start with {"type":"subAccountTransfer"
       assert String.starts_with?(action_json, ~s({"type":"subAccountTransfer"))
-
-      # Verify all fields are present
       assert String.contains?(action_json, ~s("type":"subAccountTransfer"))
       assert String.contains?(action_json, ~s("subAccountUser":"#{sub_account_user}"))
       assert String.contains?(action_json, ~s("isDeposit":false))
@@ -116,7 +131,6 @@ defmodule Hyperliquid.Api.Exchange.SubAccountTransferTest do
       sub_account_user = "0x1234567890123456789012345678901234567890"
       usd = 1_000_000
 
-      # Test deposit (true)
       deposit_action =
         Jason.OrderedObject.new([
           {:type, "subAccountTransfer"},
@@ -128,7 +142,6 @@ defmodule Hyperliquid.Api.Exchange.SubAccountTransferTest do
       deposit_map = Jason.decode!(Jason.encode!(deposit_action))
       assert deposit_map["isDeposit"] == true
 
-      # Test withdrawal (false)
       withdraw_action =
         Jason.OrderedObject.new([
           {:type, "subAccountTransfer"},
@@ -146,13 +159,9 @@ defmodule Hyperliquid.Api.Exchange.SubAccountTransferTest do
 
       test_amounts = [
         1_000_000,
-        # $1
         500_000,
-        # $0.50
         10_000_000,
-        # $10
         100_000
-        # $0.10
       ]
 
       for usd <- test_amounts do
@@ -170,8 +179,6 @@ defmodule Hyperliquid.Api.Exchange.SubAccountTransferTest do
     end
 
     test "usd field is an integer not a string" do
-      # The usd field should be passed as an integer (raw value)
-      # where float * 1e6 = integer value
       sub_account_user = "0x1234567890123456789012345678901234567890"
       usd = 1_000_000
 
@@ -185,7 +192,6 @@ defmodule Hyperliquid.Api.Exchange.SubAccountTransferTest do
 
       action_json = Jason.encode!(action)
 
-      # Verify that usd is encoded as a number, not a string
       assert String.contains?(action_json, ~s("usd":#{usd}))
       refute String.contains?(action_json, ~s("usd":"#{usd}"))
     end

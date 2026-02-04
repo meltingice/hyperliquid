@@ -1,46 +1,60 @@
 defmodule Hyperliquid.Api.Exchange.TwapCancelTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Hyperliquid.Api.Exchange.TwapCancel
 
   @private_key "0000000000000000000000000000000000000000000000000000000000000001"
 
-  describe "request/4" do
-    test "builds correct action structure for basic twap cancel" do
-      # Call the request function - we expect it to fail at the API level,
-      # but we can inspect the action structure that was built
-      result = TwapCancel.request(0, 12345, private_key: @private_key)
+  setup do
+    bypass = Bypass.open()
+    Application.put_env(:hyperliquid, :http_url, "http://localhost:#{bypass.port}")
 
-      # Should get response (either error tuple or ok with error status)
-      # Both indicate action was built correctly
-      case result do
-        {:error, _} -> :ok
-        {:ok, %{"status" => "err"}} -> :ok
-        other -> flunk("Unexpected result: #{inspect(other)}")
-      end
+    Bypass.stub(bypass, "POST", "/info", fn conn ->
+      Plug.Conn.put_resp_header(conn, "content-type", "application/json")
+      |> Plug.Conn.resp(200, Jason.encode!(%{}))
+    end)
+
+    {:ok, bypass: bypass}
+  end
+
+  describe "request/4" do
+    test "builds correct action structure for basic twap cancel", %{bypass: bypass} do
+      Bypass.expect(bypass, "POST", "/exchange", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
+        assert payload["action"]["type"] == "twapCancel"
+        assert payload["action"]["a"] == 0
+        assert payload["action"]["t"] == 12345
+
+        Plug.Conn.put_resp_header(conn, "content-type", "application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{"status" => "ok", "response" => %{"type" => "default"}}))
+      end)
+
+      assert {:ok, %{"status" => "ok"}} =
+               TwapCancel.request(0, 12345, private_key: @private_key)
     end
 
-    test "builds correct action structure with vault address" do
+    test "builds correct action structure with vault address", %{bypass: bypass} do
       vault_address = "0x1234567890123456789012345678901234567890"
 
-      result =
-        TwapCancel.request(1, 67890, private_key: @private_key, vault_address: vault_address)
+      Bypass.expect(bypass, "POST", "/exchange", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
+        assert payload["action"]["type"] == "twapCancel"
+        assert payload["vaultAddress"] == vault_address
 
-      # Should get response (either error tuple or ok with error status)
-      case result do
-        {:error, _} -> :ok
-        {:ok, %{"status" => "err"}} -> :ok
-        other -> flunk("Unexpected result: #{inspect(other)}")
-      end
+        Plug.Conn.put_resp_header(conn, "content-type", "application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{"status" => "ok", "response" => %{"type" => "default"}}))
+      end)
+
+      assert {:ok, %{"status" => "ok"}} =
+               TwapCancel.request(1, 67890, private_key: @private_key, vault_address: vault_address)
     end
 
     test "builds action with correct JSON field order" do
-      # We need to test that the action structure has correct field order
-      # This is critical for hash calculation
       asset = 0
       twap_id = 12345
 
-      # Build the action the same way the module does
       action =
         Jason.OrderedObject.new([
           {:type, "twapCancel"},
@@ -50,7 +64,6 @@ defmodule Hyperliquid.Api.Exchange.TwapCancelTest do
 
       action_json = Jason.encode!(action)
 
-      # Verify field order: type, a, t
       expected_json = ~s({"type":"twapCancel","a":0,"t":12345})
       assert action_json == expected_json
     end
@@ -69,7 +82,6 @@ defmodule Hyperliquid.Api.Exchange.TwapCancelTest do
     end
 
     test "validates field names are correct" do
-      # Ensure we're using 'a' and 't', not other field names
       action =
         Jason.OrderedObject.new([
           {:type, "twapCancel"},

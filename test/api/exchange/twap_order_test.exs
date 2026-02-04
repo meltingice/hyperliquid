@@ -1,79 +1,112 @@
 defmodule Hyperliquid.Api.Exchange.TwapOrderTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Hyperliquid.Api.Exchange.TwapOrder
   alias Hyperliquid.Utils
 
   @private_key "0000000000000000000000000000000000000000000000000000000000000001"
 
+  setup do
+    bypass = Bypass.open()
+    Application.put_env(:hyperliquid, :http_url, "http://localhost:#{bypass.port}")
+
+    # Stub /info to absorb cache warmer background requests
+    Bypass.stub(bypass, "POST", "/info", fn conn ->
+      Plug.Conn.put_resp_header(conn, "content-type", "application/json")
+      |> Plug.Conn.resp(200, Jason.encode!(%{}))
+    end)
+
+    {:ok, bypass: bypass}
+  end
+
   describe "request/5" do
-    test "builds correct action structure for basic twap order" do
-      # Call the request function - we expect it to fail at the API level,
-      # but we can inspect the action structure that was built
-      result = TwapOrder.request(0, true, "1.0", private_key: @private_key)
+    test "builds correct action structure for basic twap order", %{bypass: bypass} do
+      Bypass.expect(bypass, "POST", "/exchange", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
+        assert payload["action"]["type"] == "twapOrder"
+        assert payload["action"]["twap"]["a"] == 0
+        assert payload["action"]["twap"]["b"] == true
+        assert payload["action"]["twap"]["s"] == "1"
+        assert payload["action"]["twap"]["m"] == 5
 
-      # Should get response (either error tuple or ok with error status)
-      case result do
-        {:error, _} -> :ok
-        {:ok, %{"status" => "err"}} -> :ok
-        other -> flunk("Unexpected result: #{inspect(other)}")
-      end
+        Plug.Conn.put_resp_header(conn, "content-type", "application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{"status" => "ok", "response" => %{"type" => "default"}}))
+      end)
+
+      assert {:ok, %{"status" => "ok"}} = TwapOrder.request(0, true, "1.0", private_key: @private_key)
     end
 
-    test "builds correct action with custom duration" do
-      result = TwapOrder.request(0, true, "1.0", duration_minutes: 30, private_key: @private_key)
+    test "builds correct action with custom duration", %{bypass: bypass} do
+      Bypass.expect(bypass, "POST", "/exchange", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
+        assert payload["action"]["type"] == "twapOrder"
+        assert payload["action"]["twap"]["m"] == 30
 
-      # Should get response (either error tuple or ok with error status)
-      case result do
-        {:error, _} -> :ok
-        {:ok, %{"status" => "err"}} -> :ok
-        other -> flunk("Unexpected result: #{inspect(other)}")
-      end
+        Plug.Conn.put_resp_header(conn, "content-type", "application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{"status" => "ok", "response" => %{"type" => "default"}}))
+      end)
+
+      assert {:ok, %{"status" => "ok"}} =
+               TwapOrder.request(0, true, "1.0", duration_minutes: 30, private_key: @private_key)
     end
 
-    test "builds correct action with reduce_only flag" do
-      result = TwapOrder.request(0, false, "0.5", reduce_only: true, private_key: @private_key)
+    test "builds correct action with reduce_only flag", %{bypass: bypass} do
+      Bypass.expect(bypass, "POST", "/exchange", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
+        assert payload["action"]["type"] == "twapOrder"
+        assert payload["action"]["twap"]["r"] == true
+        assert payload["action"]["twap"]["b"] == false
 
-      # Should get response (either error tuple or ok with error status)
-      case result do
-        {:error, _} -> :ok
-        {:ok, %{"status" => "err"}} -> :ok
-        other -> flunk("Unexpected result: #{inspect(other)}")
-      end
+        Plug.Conn.put_resp_header(conn, "content-type", "application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{"status" => "ok", "response" => %{"type" => "default"}}))
+      end)
+
+      assert {:ok, %{"status" => "ok"}} =
+               TwapOrder.request(0, false, "0.5", reduce_only: true, private_key: @private_key)
     end
 
-    test "builds correct action with randomize flag" do
-      result =
-        TwapOrder.request(1, true, "2.0",
-          duration_minutes: 15,
-          randomize: true,
-          private_key: @private_key
-        )
+    test "builds correct action with randomize flag", %{bypass: bypass} do
+      Bypass.expect(bypass, "POST", "/exchange", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
+        assert payload["action"]["type"] == "twapOrder"
+        assert payload["action"]["twap"]["t"] == true
+        assert payload["action"]["twap"]["m"] == 15
 
-      # Should get response (either error tuple or ok with error status)
-      case result do
-        {:error, _} -> :ok
-        {:ok, %{"status" => "err"}} -> :ok
-        other -> flunk("Unexpected result: #{inspect(other)}")
-      end
+        Plug.Conn.put_resp_header(conn, "content-type", "application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{"status" => "ok", "response" => %{"type" => "default"}}))
+      end)
+
+      assert {:ok, %{"status" => "ok"}} =
+               TwapOrder.request(1, true, "2.0",
+                 duration_minutes: 15,
+                 randomize: true,
+                 private_key: @private_key
+               )
     end
 
-    test "builds action with vault address" do
+    test "builds action with vault address", %{bypass: bypass} do
       vault_address = "0x1234567890123456789012345678901234567890"
 
-      result =
-        TwapOrder.request(0, true, "1.0",
-          vault_address: vault_address,
-          duration_minutes: 10,
-          private_key: @private_key
-        )
+      Bypass.expect(bypass, "POST", "/exchange", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
+        assert payload["action"]["type"] == "twapOrder"
+        assert payload["vaultAddress"] == vault_address
 
-      # Should get response (either error tuple or ok with error status)
-      case result do
-        {:error, _} -> :ok
-        {:ok, %{"status" => "err"}} -> :ok
-        other -> flunk("Unexpected result: #{inspect(other)}")
-      end
+        Plug.Conn.put_resp_header(conn, "content-type", "application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{"status" => "ok", "response" => %{"type" => "default"}}))
+      end)
+
+      assert {:ok, %{"status" => "ok"}} =
+               TwapOrder.request(0, true, "1.0",
+                 vault_address: vault_address,
+                 duration_minutes: 10,
+                 private_key: @private_key
+               )
     end
 
     test "builds action with correct JSON field order for twap" do

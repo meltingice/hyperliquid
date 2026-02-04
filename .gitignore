@@ -37,3 +37,6 @@ config/prod.secret.exs
 
 # GSD planning directory (local only)
 .planning/
+
+# Debug test files (local only)
+/test/debug/

@@ -1,32 +1,46 @@
 defmodule Hyperliquid.Api.Exchange.SpotSendTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Hyperliquid.Api.Exchange.SpotSend
   alias Hyperliquid.Utils
 
   @private_key "0000000000000000000000000000000000000000000000000000000000000001"
 
+  setup do
+    bypass = Bypass.open()
+    Application.put_env(:hyperliquid, :http_url, "http://localhost:#{bypass.port}")
+
+    Bypass.stub(bypass, "POST", "/info", fn conn ->
+      Plug.Conn.put_resp_header(conn, "content-type", "application/json")
+      |> Plug.Conn.resp(200, Jason.encode!(%{}))
+    end)
+
+    {:ok, bypass: bypass}
+  end
+
   describe "request/5" do
-    test "builds correct action structure for basic spot send" do
+    test "builds correct action structure for basic spot send", %{bypass: bypass} do
       destination = "0x0000000000000000000000000000000000000001"
       token = "USDC:0xeb62eee3685fc4c43992febcd9e75443"
       amount = "10.0"
 
-      # Call the request function - we expect it to fail at the API level,
-      # but we can inspect the action structure that was built
-      result = SpotSend.request(destination, token, amount, private_key: @private_key)
+      Bypass.expect(bypass, "POST", "/exchange", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
+        assert payload["action"]["type"] == "spotSend"
+        assert payload["action"]["destination"] == destination
+        assert payload["action"]["token"] == token
+        assert payload["action"]["amount"] == amount
 
-      # Should get response (either error tuple or ok with error status)
-      case result do
-        {:error, _} -> :ok
-        {:ok, %{"status" => "err"}} -> :ok
-        other -> flunk("Unexpected result: #{inspect(other)}")
-      end
+        Plug.Conn.put_resp_header(conn, "content-type", "application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{"status" => "ok", "response" => %{"type" => "default"}}))
+      end)
+
+      assert {:ok, %{"status" => "ok"}} =
+               SpotSend.request(destination, token, amount, private_key: @private_key)
     end
 
     test "builds action with correct JSON field order for mainnet" do
-      # Simulate mainnet action structure
-      # Field order: type, signatureChainId, hyperliquidChain, destination, token, amount, time
       time = 1_234_567_890
       mainnet_chain_id = Utils.from_int(42_161)
 
@@ -50,7 +64,6 @@ defmodule Hyperliquid.Api.Exchange.SpotSendTest do
     end
 
     test "builds action with correct JSON field order for testnet" do
-      # Simulate testnet action structure
       time = 1_234_567_890
       testnet_chain_id = Utils.from_int(421_614)
 
@@ -74,7 +87,6 @@ defmodule Hyperliquid.Api.Exchange.SpotSendTest do
     end
 
     test "validates field names are correct" do
-      # Ensure we're using the correct field names
       time = 1_234_567_890
       chain_id = Utils.from_int(42_161)
 
@@ -99,23 +111,19 @@ defmodule Hyperliquid.Api.Exchange.SpotSendTest do
       assert Map.has_key?(action_map, "amount")
       assert Map.has_key?(action_map, "time")
 
-      # Verify correct values
       assert action_map["type"] == "spotSend"
       assert action_map["hyperliquidChain"] == "Mainnet"
     end
 
     test "uses correct chain IDs" do
-      # Mainnet chain ID should be 42161 (0xA4B1 or 0xa4b1 in hex)
       mainnet_chain_id = Utils.from_int(42_161)
       assert String.downcase(mainnet_chain_id) == "0xa4b1"
 
-      # Testnet chain ID should be 421614 (0x66EEE or 0x66eee in hex)
       testnet_chain_id = Utils.from_int(421_614)
       assert String.downcase(testnet_chain_id) == "0x66eee"
     end
 
     test "field order is preserved in encoded JSON" do
-      # This test ensures that when we encode the action, the field order is exactly as specified
       time = 1_234_567_890
       chain_id = Utils.from_int(42_161)
 
@@ -132,10 +140,7 @@ defmodule Hyperliquid.Api.Exchange.SpotSendTest do
 
       action_json = Jason.encode!(action)
 
-      # The JSON string should start with {"type":"spotSend","signatureChainId":
       assert String.starts_with?(action_json, ~s({"type":"spotSend","signatureChainId":))
-
-      # Verify all fields are present
       assert String.contains?(action_json, ~s("type":"spotSend"))
       assert String.contains?(action_json, ~s("signatureChainId":"#{chain_id}"))
       assert String.contains?(action_json, ~s("hyperliquidChain":"Mainnet"))

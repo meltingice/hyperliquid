@@ -1,35 +1,52 @@
 defmodule Hyperliquid.Api.Exchange.SendAssetTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Hyperliquid.Api.Exchange.SendAsset
   alias Hyperliquid.Utils
 
   @private_key "0000000000000000000000000000000000000000000000000000000000000001"
 
+  setup do
+    bypass = Bypass.open()
+    Application.put_env(:hyperliquid, :http_url, "http://localhost:#{bypass.port}")
+
+    Bypass.stub(bypass, "POST", "/info", fn conn ->
+      Plug.Conn.put_resp_header(conn, "content-type", "application/json")
+      |> Plug.Conn.resp(200, Jason.encode!(%{}))
+    end)
+
+    {:ok, bypass: bypass}
+  end
+
   describe "request/7" do
-    test "builds correct action structure for perp to spot transfer" do
+    test "builds correct action structure for perp to spot transfer", %{bypass: bypass} do
       destination = "0x0000000000000000000000000000000000000001"
       source_dex = ""
       destination_dex = "spot"
       token = "USDC:0xeb62eee3685fc4c43992febcd9e75443"
       amount = "100.0"
 
-      # Call the request function - we expect it to fail at the API level,
-      # but we can inspect the action structure that was built
-      result =
-        SendAsset.request(destination, source_dex, destination_dex, token, amount,
-          private_key: @private_key
-        )
+      Bypass.expect(bypass, "POST", "/exchange", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
+        assert payload["action"]["type"] == "sendAsset"
+        assert payload["action"]["destination"] == destination
+        assert payload["action"]["sourceDex"] == ""
+        assert payload["action"]["destinationDex"] == "spot"
+        assert payload["action"]["token"] == token
+        assert payload["action"]["amount"] == amount
 
-      # Should get response (either error tuple or ok with error status)
-      case result do
-        {:error, _} -> :ok
-        {:ok, %{"status" => "err"}} -> :ok
-        other -> flunk("Unexpected result: #{inspect(other)}")
-      end
+        Plug.Conn.put_resp_header(conn, "content-type", "application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{"status" => "ok", "response" => %{"type" => "default"}}))
+      end)
+
+      assert {:ok, %{"status" => "ok"}} =
+               SendAsset.request(destination, source_dex, destination_dex, token, amount,
+                 private_key: @private_key
+               )
     end
 
-    test "builds correct action structure with from_sub_account option" do
+    test "builds correct action structure with from_sub_account option", %{bypass: bypass} do
       destination = "0x0000000000000000000000000000000000000001"
       source_dex = ""
       destination_dex = ""
@@ -37,29 +54,29 @@ defmodule Hyperliquid.Api.Exchange.SendAssetTest do
       amount = "50.0"
       from_sub_account = "0x1234567890123456789012345678901234567890"
 
-      result =
-        SendAsset.request(
-          destination,
-          source_dex,
-          destination_dex,
-          token,
-          amount,
-          from_sub_account: from_sub_account,
-          private_key: @private_key
-        )
+      Bypass.expect(bypass, "POST", "/exchange", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
+        assert payload["action"]["type"] == "sendAsset"
+        assert payload["action"]["fromSubAccount"] == from_sub_account
 
-      # Should get response (either error tuple or ok with error status)
-      case result do
-        {:error, _} -> :ok
-        {:ok, %{"status" => "err"}} -> :ok
-        other -> flunk("Unexpected result: #{inspect(other)}")
-      end
+        Plug.Conn.put_resp_header(conn, "content-type", "application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{"status" => "ok", "response" => %{"type" => "default"}}))
+      end)
+
+      assert {:ok, %{"status" => "ok"}} =
+               SendAsset.request(
+                 destination,
+                 source_dex,
+                 destination_dex,
+                 token,
+                 amount,
+                 from_sub_account: from_sub_account,
+                 private_key: @private_key
+               )
     end
 
     test "builds action with correct JSON field order for mainnet" do
-      # Simulate mainnet action structure
-      # Field order: type, signatureChainId, hyperliquidChain, destination, sourceDex,
-      #              destinationDex, token, amount, fromSubAccount, nonce
       time = 1_234_567_890
       mainnet_chain_id = Utils.from_int(42_161)
 
@@ -86,7 +103,6 @@ defmodule Hyperliquid.Api.Exchange.SendAssetTest do
     end
 
     test "builds action with correct JSON field order for testnet" do
-      # Simulate testnet action structure
       time = 1_234_567_890
       testnet_chain_id = Utils.from_int(421_614)
       from_sub_account = "0x1234567890123456789012345678901234567890"
@@ -114,7 +130,6 @@ defmodule Hyperliquid.Api.Exchange.SendAssetTest do
     end
 
     test "validates field names are correct" do
-      # Ensure we're using the correct field names
       time = 1_234_567_890
       chain_id = Utils.from_int(42_161)
 
@@ -145,23 +160,19 @@ defmodule Hyperliquid.Api.Exchange.SendAssetTest do
       assert Map.has_key?(action_map, "fromSubAccount")
       assert Map.has_key?(action_map, "nonce")
 
-      # Verify correct values
       assert action_map["type"] == "sendAsset"
       assert action_map["hyperliquidChain"] == "Mainnet"
     end
 
     test "uses correct chain IDs" do
-      # Mainnet chain ID should be 42161 (0xA4B1 or 0xa4b1 in hex)
       mainnet_chain_id = Utils.from_int(42_161)
       assert String.downcase(mainnet_chain_id) == "0xa4b1"
 
-      # Testnet chain ID should be 421614 (0x66EEE or 0x66eee in hex)
       testnet_chain_id = Utils.from_int(421_614)
       assert String.downcase(testnet_chain_id) == "0x66eee"
     end
 
     test "field order is preserved in encoded JSON" do
-      # This test ensures that when we encode the action, the field order is exactly as specified
       time = 1_234_567_890
       chain_id = Utils.from_int(42_161)
 
@@ -181,10 +192,7 @@ defmodule Hyperliquid.Api.Exchange.SendAssetTest do
 
       action_json = Jason.encode!(action)
 
-      # The JSON string should start with {"type":"sendAsset","signatureChainId":
       assert String.starts_with?(action_json, ~s({"type":"sendAsset","signatureChainId":))
-
-      # Verify all fields are present
       assert String.contains?(action_json, ~s("type":"sendAsset"))
       assert String.contains?(action_json, ~s("signatureChainId":"#{chain_id}"))
       assert String.contains?(action_json, ~s("hyperliquidChain":"Mainnet"))
@@ -238,7 +246,6 @@ defmodule Hyperliquid.Api.Exchange.SendAssetTest do
       time = 1_234_567_890
       chain_id = Utils.from_int(42_161)
 
-      # When fromSubAccount is not provided, it should default to ""
       action =
         Jason.OrderedObject.new([
           {:type, "sendAsset"},

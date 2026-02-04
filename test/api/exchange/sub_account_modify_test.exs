@@ -1,33 +1,46 @@
 defmodule Hyperliquid.Api.Exchange.SubAccountModifyTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Hyperliquid.Api.Exchange.SubAccountModify
 
   @private_key "0000000000000000000000000000000000000000000000000000000000000001"
 
+  setup do
+    bypass = Bypass.open()
+    Application.put_env(:hyperliquid, :http_url, "http://localhost:#{bypass.port}")
+
+    Bypass.stub(bypass, "POST", "/info", fn conn ->
+      Plug.Conn.put_resp_header(conn, "content-type", "application/json")
+      |> Plug.Conn.resp(200, Jason.encode!(%{}))
+    end)
+
+    {:ok, bypass: bypass}
+  end
+
   describe "request/3" do
-    test "builds correct action structure for renaming sub-account" do
+    test "builds correct action structure for renaming sub-account", %{bypass: bypass} do
       name = "Renamed Bot"
       sub_account_user = "0x1234567890123456789012345678901234567890"
 
-      # Call the request function - we expect it to fail at the API level,
-      # but we can inspect the action structure that was built
-      result =
-        SubAccountModify.request(name,
-          sub_account_user: sub_account_user,
-          private_key: @private_key
-        )
+      Bypass.expect(bypass, "POST", "/exchange", fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        payload = Jason.decode!(body)
+        assert payload["action"]["type"] == "subAccountModify"
+        assert payload["action"]["subAccountUser"] == sub_account_user
+        assert payload["action"]["name"] == "Renamed Bot"
 
-      # Should get response (either error tuple or ok with error status)
-      case result do
-        {:error, _} -> :ok
-        {:ok, %{"status" => "err"}} -> :ok
-        other -> flunk("Unexpected result: #{inspect(other)}")
-      end
+        Plug.Conn.put_resp_header(conn, "content-type", "application/json")
+        |> Plug.Conn.resp(200, Jason.encode!(%{"status" => "ok", "response" => %{"type" => "default"}}))
+      end)
+
+      assert {:ok, %{"status" => "ok"}} =
+               SubAccountModify.request(name,
+                 sub_account_user: sub_account_user,
+                 private_key: @private_key
+               )
     end
 
     test "builds action with correct JSON field order when modifying" do
-      # Test that action fields are in correct order: type, subAccountUser, name
       name = "New Name"
       sub_account_user = "0x1234567890123456789012345678901234567890"
 
@@ -47,7 +60,6 @@ defmodule Hyperliquid.Api.Exchange.SubAccountModifyTest do
     end
 
     test "builds action with correct JSON field order without sub_account_user" do
-      # When creating (no subAccountUser), field order should be: type, name
       name = "Test Account"
 
       action =
@@ -62,7 +74,6 @@ defmodule Hyperliquid.Api.Exchange.SubAccountModifyTest do
     end
 
     test "validates field names are correct with subAccountUser" do
-      # Ensure we're using 'type', 'subAccountUser', and 'name'
       action =
         Jason.OrderedObject.new([
           {:type, "subAccountModify"},
@@ -80,7 +91,6 @@ defmodule Hyperliquid.Api.Exchange.SubAccountModifyTest do
     end
 
     test "validates field names are correct without subAccountUser" do
-      # Ensure we're using 'type' and 'name' only
       action =
         Jason.OrderedObject.new([
           {:type, "subAccountModify"},
@@ -95,7 +105,6 @@ defmodule Hyperliquid.Api.Exchange.SubAccountModifyTest do
     end
 
     test "field order is preserved in encoded JSON with subAccountUser" do
-      # This test ensures that when we encode the action, the field order is exactly as specified
       name = "Ordered Test"
       sub_account_user = "0x1234567890123456789012345678901234567890"
 
@@ -108,10 +117,7 @@ defmodule Hyperliquid.Api.Exchange.SubAccountModifyTest do
 
       action_json = Jason.encode!(action)
 
-      # The JSON string should start with {"type":"subAccountModify"
       assert String.starts_with?(action_json, ~s({"type":"subAccountModify"))
-
-      # And contain fields in order
       assert String.contains?(action_json, ~s("type":"subAccountModify"))
       assert String.contains?(action_json, ~s("subAccountUser":"#{sub_account_user}"))
       assert String.contains?(action_json, ~s("name":"#{name}"))
