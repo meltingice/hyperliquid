@@ -32,6 +32,9 @@ config/prod.secret.exs
 # Rust build artifacts
 /native/*/target/
 
+# Precompiled NIF binaries (downloaded or built locally)
+/priv/native/
+
 # Prompts directory (for AI-assisted development)
 /prompts/
 
@@ -40,3 +43,4 @@ config/prod.secret.exs
 
 # Debug test files (local only)
 /test/debug/
+notebooks/exchange_testing.livemd

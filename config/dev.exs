@@ -16,6 +16,9 @@ import Config
 #   show_sensitive_data_on_connection_error: true,
 #   pool_size: 10
 
+# Force-build Rust NIFs from source during local development
+config :rustler_precompiled, :force_build, hyperliquid: true
+
 # Optional: Import secrets file (create config/dev.secret.exs for your private key)
 if File.exists?("config/dev.secret.exs") do
   import_config "dev.secret.exs"

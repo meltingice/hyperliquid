@@ -31,7 +31,18 @@ defmodule Hyperliquid.MixProject do
         "Elixir SDK for Hyperliquid DEX with DSL-based API endpoints, WebSocket subscriptions, and optional Postgres/Phoenix integration",
       maintainers: ["Steven Kedzior"],
       licenses: ["MIT"],
-      links: %{"GitHub" => @source_url}
+      links: %{"GitHub" => @source_url},
+      files: ~w(
+        lib
+        native/signer/src
+        native/signer/Cargo.toml
+        native/signer/Cargo.lock
+        checksum-Elixir.Hyperliquid.Signer.exs
+        mix.exs
+        README.md
+        CHANGELOG.md
+        LICENSE.md
+      )
     ]
   end
 
@@ -52,7 +63,8 @@ defmodule Hyperliquid.MixProject do
       {:ecto_sql, "~> 3.10", optional: true},
       {:postgrex, ">= 0.0.0", optional: true},
 
-      # Native extensions (optional)
+      # Native extensions
+      {:rustler_precompiled, "~> 0.8"},
       {:rustler, "~> 0.37.1", runtime: false, optional: true},
 
       # Development and testing

@@ -1,15 +1,25 @@
 defmodule Hyperliquid.Signer do
-  # Only compile NIF if Rustler is available and native code exists
-  # This allows the package to work without Rust compiler installed
-  if Code.ensure_loaded?(Rustler) and File.dir?("native/signer") do
-    use Rustler,
-      otp_app: :hyperliquid,
-      crate: "signer_nif",
-      path: "native/signer",
-      skip_compilation?: System.get_env("SKIP_RUSTLER_COMPILE") == "true"
-  end
+  version = Mix.Project.config()[:version]
 
-  @nif_error_msg "Rust NIF not available. Ensure native/signer directory exists and run: mix deps.compile rustler --force"
+  use RustlerPrecompiled,
+    otp_app: :hyperliquid,
+    crate: "signer_nif",
+    base_url: "https://github.com/skedzior/hyperliquid/releases/download/v#{version}",
+    force_build: System.get_env("HYPERLIQUID_BUILD_NIF") in ["1", "true"],
+    version: version,
+    targets: ~w(
+      aarch64-apple-darwin
+      aarch64-unknown-linux-gnu
+      aarch64-unknown-linux-musl
+      x86_64-apple-darwin
+      x86_64-unknown-linux-gnu
+      x86_64-unknown-linux-musl
+      x86_64-pc-windows-gnu
+      x86_64-pc-windows-msvc
+    ),
+    nif_versions: ["2.15", "2.16", "2.17"]
+
+  @nif_error_msg "Rust NIF not available. Install precompiled binaries with `mix deps.get` or set HYPERLIQUID_BUILD_NIF=true to compile from source."
 
   # Fallbacks when NIF is not loaded - return descriptive error tuples
   def compute_connection_id(_action_json, _nonce, _vault_address) do
