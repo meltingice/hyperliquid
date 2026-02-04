@@ -1,5 +1,7 @@
 import Config
 
+config :logger, level: :info
+
 # Main Hyperliquid configuration
 config :hyperliquid,
   # Chain selection (:mainnet or :testnet)
