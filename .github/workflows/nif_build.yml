@@ -29,6 +29,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set version from tag
+        shell: bash
+        run: echo "PROJECT_VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+
       - name: Install cross-compilation target
         if: matrix.job.target == 'x86_64-apple-darwin' && runner.arch == 'ARM64'
         run: rustup target add x86_64-apple-darwin
@@ -38,7 +42,7 @@ jobs:
         with:
           project-name: signer_nif
           project-dir: native/signer
-          project-version: ${{ github.ref_name }}
+          project-version: ${{ env.PROJECT_VERSION }}
           target: ${{ matrix.job.target }}
           nif-version: ${{ matrix.nif }}
           use-cross: ${{ matrix.job.use-cross }}
@@ -48,4 +52,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            native/signer/signer_nif-*
+            signer_nif-*
