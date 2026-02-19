@@ -1047,7 +1047,7 @@ defmodule Hyperliquid.Transport.Http do
     end
   end
 
-  defp parse_response(body, raw? \\ false)
+  defp parse_response(body, raw?)
 
   defp parse_response(body, true) when is_binary(body) do
     case Jason.decode(body) do

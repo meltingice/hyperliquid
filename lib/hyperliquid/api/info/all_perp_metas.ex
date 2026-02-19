@@ -299,20 +299,28 @@ defmodule Hyperliquid.Api.Info.AllPerpMetas do
         }
       end)
 
-    case Hyperliquid.Repo.insert_all(
-           "margin_tables",
-           records,
-           on_conflict:
-             {:replace,
-              [
-                :description,
-                :margin_tiers,
-                :updated_at
-              ]},
-           conflict_target: :id,
-           returning: false
-         ) do
-      {count, _} -> {:ok, count}
+    repo = Hyperliquid.Repo
+
+    if Code.ensure_loaded?(repo) do
+      case apply(repo, :insert_all, [
+             "margin_tables",
+             records,
+             [
+               on_conflict:
+                 {:replace,
+                  [
+                    :description,
+                    :margin_tiers,
+                    :updated_at
+                  ]},
+               conflict_target: :id,
+               returning: false
+             ]
+           ]) do
+        {count, _} -> {:ok, count}
+      end
+    else
+      {:error, :repo_not_available}
     end
   end
 
