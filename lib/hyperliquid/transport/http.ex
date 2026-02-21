@@ -345,7 +345,13 @@ defmodule Hyperliquid.Transport.Http do
   """
   @spec meta_and_asset_ctxs(request_opts()) :: response()
   def meta_and_asset_ctxs(opts \\ []) do
-    info_request(%{type: "metaAndAssetCtxs"}, opts)
+    payload =
+      case Keyword.get(opts, :dex) do
+        nil -> %{type: "metaAndAssetCtxs"}
+        dex -> %{type: "metaAndAssetCtxs", dex: dex}
+      end
+
+    info_request(payload, opts)
   end
 
   @doc """
