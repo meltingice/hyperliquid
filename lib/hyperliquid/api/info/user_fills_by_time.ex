@@ -86,9 +86,9 @@ defmodule Hyperliquid.Api.Info.UserFillsByTime do
           {:ok, t()} | {:error, term()}
   def request_with_end_time(user, start_time, end_time) when is_integer(end_time) do
     with {:ok, data} <-
-           Http.info_request(build_request_with_end_time(user, start_time, end_time)),
-         {:ok, result} <- parse_response(data) do
-      {:ok, result}
+           Http.info_request(build_request_with_end_time(user, start_time, end_time)) do
+      data = preprocess(data)
+      parse_response(data)
     end
   end
 
